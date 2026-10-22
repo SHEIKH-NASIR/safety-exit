@@ -1,27 +1,24 @@
 {
   "name": "vanilla-typescript",
   "version": "1.0.0",
-  "description": "Generate Blue Dot traces for testing Mappedin SDKs",
-  "main": "index.html",
+  "description": "CampusResQ - Emergency Exit and Safe Route Finder",
+  "source": "index.html",
   "scripts": {
     "start": "parcel index.html",
-    "build": "parcel build index.html --no-minify"
+    "build": "parcel build index.html --no-scope-hoist"
   },
   "dependencies": {
     "@mappedin/3d-assets": "^0.0.8",
-    "@mappedin/dynamic-focus": "latest",
-    "@mappedin/mappedin-js": "beta",
+    "@mappedin/dynamic-focus": "6.0.1-beta.53",
+    "@mappedin/mappedin-js": "6.0.1-beta.53",
     "@types/geodesy": "^2.2.3",
-    "geodesy": "2.4.0",
-    "parcel-bundler": "^1.12.4"
+    "geodesy": "2.4.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.29.7",
-    "@babel/preset-env": "^7.29.7",
+    "@swc/core": "^1.15.33",
+    "@swc/core-win32-x64-msvc": "^1.15.33",
+    "parcel": "^2.16.4",
     "typescript": "4.4.4"
-  },
-  "resolutions": {
-    "@babel/preset-env": "7.13.8"
   },
   "keywords": [
     "typescript",

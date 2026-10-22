@@ -12,12 +12,13 @@ import {
 import { DynamicFocus } from "@mappedin/dynamic-focus";
 import { truck, tree_pine } from "@mappedin/3d-assets";
 
-import "@mappedin/mappedin-js/lib/index.css";
+import "./mappedin.css";
 const modelMap: Record<string, string> = {
   truck,
   tree_pine,
   // add more models here as needed
 };
+import globalModelsData from "../global-models.json";
 
 import { generatePositionUpdates } from "./generator";
 import { populateSpaceSelector } from "./spaceSelector";
@@ -238,7 +239,7 @@ resetButton.onclick = () => {
 
   positions = undefined;
   fakePositionUpdater.reset();
-  mapView.BlueDot.disable();
+  mapView.BlueDot?.disable?.();
   blueDotEnabled = false;
 
   followingBlueDot = true;
@@ -712,46 +713,57 @@ function buildAnnouncements(
 }
 
 async function loadGlobalModels() {
-  const response = await fetch("/global-models.json");
-  const data = await response.json();
-
-  data.models.forEach((model: any) => {
-    let floor = null;
-
-    if (model.floorId) {
-      floor = mapData.getById("floor", model.floorId);
-    } else if (model.floorName) {
-      floor = mapData
-        .getByType("floor")
-        .find((f) => f.name === model.floorName);
+  try {
+    let data: any = globalModelsData;
+    if (!data || !data.models) {
+      const response = await fetch("/global-models.json");
+      if (response.ok) {
+        data = await response.json();
+      }
     }
 
-    if (!floor) {
-      console.warn(`Floor not found for model:`, model);
-      return;
+    if (data && Array.isArray(data.models)) {
+      data.models.forEach((model: any) => {
+        let floor = null;
+
+        if (model.floorId) {
+          floor = mapData.getById("floor", model.floorId);
+        } else if (model.floorName) {
+          floor = mapData
+            .getByType("floor")
+            .find((f) => f.name === model.floorName);
+        }
+
+        if (!floor) {
+          console.warn(`Floor not found for model:`, model);
+          return;
+        }
+
+        const coord = mapView.createCoordinate(
+          model.latitude,
+          model.longitude,
+          floor
+        );
+        const modelUrl = modelMap[model.modelId];
+
+        if (!modelUrl) {
+          console.warn(`Unknown modelId: ${model.modelId}`);
+          return;
+        }
+
+        mapView.Models.add(coord, modelUrl, {
+          rotation: model.rotation || [0, 0, 0],
+          scale: model.scale || [1, 1, 1],
+          verticalOffset: model.verticalOffset || 0,
+          material: {
+            Default: { color: model.color || "#ffffff" },
+          },
+        });
+      });
     }
-
-    const coord = mapView.createCoordinate(
-      model.latitude,
-      model.longitude,
-      floor
-    );
-    const modelUrl = modelMap[model.modelId];
-
-    if (!modelUrl) {
-      console.warn(`Unknown modelId: ${model.modelId}`);
-      return;
-    }
-
-    mapView.Models.add(coord, modelUrl, {
-      rotation: model.rotation || [0, 0, 0],
-      scale: model.scale || [1, 1, 1],
-      verticalOffset: model.verticalOffset || 0,
-      material: {
-        Default: { color: model.color || "#ffffff" },
-      },
-    });
-  });
+  } catch (err) {
+    console.warn("⚠️ Could not load global models, continuing map init:", err);
+  }
 }
 function setupCategoryDropdown(
   categorySelect: HTMLSelectElement,
@@ -1212,8 +1224,10 @@ async function init(mapDataOptions: TGetMapDataOptions) {
     mapView.Markers.add(fs.facade.center, `<div>${fs.name}</div>`);
   });
 
-  mapView.BlueDot.enable();
-  blueDotEnabled = true;
+  if (mapView.BlueDot && typeof mapView.BlueDot.enable === "function") {
+    mapView.BlueDot.enable();
+    blueDotEnabled = true;
+  }
 
   if ("speechSynthesis" in window) {
     speechSynthesis.getVoices();
@@ -1241,7 +1255,7 @@ async function init(mapDataOptions: TGetMapDataOptions) {
 
     if (mapData == null) return;
 
-    if (!blueDotEnabled) {
+    if (!blueDotEnabled && mapView.BlueDot && typeof mapView.BlueDot.enable === "function") {
       mapView.BlueDot.enable();
       blueDotEnabled = true;
     }
@@ -2195,7 +2209,7 @@ async function init(mapDataOptions: TGetMapDataOptions) {
       mapView.Navigation.clear();
       positions = undefined;
       fakePositionUpdater.reset();
-      mapView.BlueDot.disable();
+      mapView.BlueDot?.disable?.();
       blueDotEnabled = false;
       hideInstructionBanner();
     },
@@ -2602,7 +2616,7 @@ async function init(mapDataOptions: TGetMapDataOptions) {
   }
 
   function applyPositionUpdate(position: TBlueDotPositionUpdate) {
-    mapView.BlueDot.update(position);
+    mapView.BlueDot?.update?.(position);
 
     if (mapView.currentFloor.id !== position.floorOrFloorId) {
       mapView.setFloor(position.floorOrFloorId!);
@@ -2774,7 +2788,7 @@ async function init(mapDataOptions: TGetMapDataOptions) {
             setTimeout(hideInstructionBanner, 6000);
 
             fakePositionUpdater.stop();
-            mapView.BlueDot.disable();
+            mapView.BlueDot?.disable?.();
             blueDotEnabled = false;
           }
         }
@@ -2905,11 +2919,3 @@ init(getMapDataOptionsWithFallbacks());
 loadMapButton.onclick = () => {
   init(getMapDataOptionsWithFallbacks());
 };
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker
-      .register("./service-worker.ts")
-      .then((reg) => console.log("✅ SW registered:", reg))
-      .catch((err) => console.warn("❌ SW registration failed:", err));
-  });
-}
