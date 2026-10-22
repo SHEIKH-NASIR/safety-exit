@@ -1,0 +1,25 @@
+{
+  "name": "vanilla-typescript",
+  "version": "1.0.0",
+  "description": "Generate Blue Dot traces for testing Mappedin SDKs",
+  "main": "index.html",
+  "scripts": {
+    "start": "parcel index.html",
+    "build": "parcel build index.html"
+  },
+  "dependencies": {
+    "@mappedin/mappedin-js": "beta",
+    "@mappedin/3d-assets": "^0.0.8",
+    "parcel-bundler": "1.6.1",
+    "@mappedin/dynamic-focus": "latest",
+    "@types/geodesy": "^2.2.3",
+    "geodesy": "2.4.0"
+  },
+  "devDependencies": {
+    "typescript": "4.4.4"
+  },
+  "resolutions": {
+    "@babel/preset-env": "7.13.8"
+  },
+  "keywords": ["typescript", "javascript"]
+}

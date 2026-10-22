@@ -1,0 +1,24 @@
+{
+  "models": [
+    {
+      "modelId": "tree_pine",
+      "latitude": 43.46577996,
+      "longitude": -80.52373112,
+      "floorName": "Overview",
+      "rotation": [0, 0, 0],
+      "scale": [2, 2, 2],
+      "verticalOffset": 0,
+      "color": "#ffffff"
+    },
+    {
+      "modelId": "truck",
+      "latitude": 43.46538019,
+      "longitude": -80.52437406,
+      "floorId": "m_f5d3537f84fb2d4f",
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "verticalOffset": 0,
+      "color": "#ffffff"
+    }
+  ]
+}

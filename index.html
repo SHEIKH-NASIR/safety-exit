@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Blue Dot Location Generator</title>
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#111111" />
+    <!-- 🔍 Tom Select styles and script (unchanged) -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.css"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+
+    <style>
+      :root {
+        --accent: #1a73e8;
+        --accent-dark: #0d5bba;
+        --surface: #ffffff;
+        --surface-muted: #f4f4f5;
+        --border: #e2e2e5;
+        --text: #1a1a1a;
+        --text-muted: #6b6b6f;
+        --radius-lg: 16px;
+        --radius-md: 10px;
+        --radius-sm: 8px;
+        --shadow: 0 4px 20px rgba(0, 0, 0, 0.18);
+        --safe-bottom: env(safe-area-inset-bottom, 0px);
+        --safe-top: env(safe-area-inset-top, 0px);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+        overscroll-behavior: none;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Helvetica, Arial, sans-serif;
+        color: var(--text);
+        background: var(--surface-muted);
+      }
+
+      /* ---------- Layout shell ---------- */
+      .app {
+        position: relative;
+        height: 100%;
+        width: 100%;
+        overflow: hidden;
+      }
+
+      /* Map is ALWAYS full-screen — nothing shrinks it anymore */
+      #map-container {
+        position: fixed;
+        inset: 0;
+        overflow: hidden;
+      }
+      #map-container > div {
+        height: 100%;
+        width: 100%;
+      }
+
+      /* ---------- Top bar (app title, minimal) ---------- */
+      .topbar {
+        position: fixed;
+        top: calc(12px + var(--safe-top));
+        left: 12px;
+        z-index: 20;
+        background: var(--surface);
+        padding: 10px 16px;
+        border-radius: 999px;
+        box-shadow: var(--shadow);
+        font-weight: 700;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        pointer-events: none;
+      }
+      .topbar .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--accent);
+      }
+
+      /* ---------- Floor selector: floating pill, Maps-style ---------- */
+      #floorSelector {
+        position: fixed;
+        top: calc(12px + var(--safe-top));
+        right: 12px;
+        z-index: 20;
+        background: var(--surface);
+        border: none;
+        border-radius: 999px;
+        padding: 10px 14px;
+        font-size: 14px;
+        font-weight: 600;
+        box-shadow: var(--shadow);
+        appearance: none;
+        cursor: pointer;
+      }
+
+      /*
+        ✅ REMOVED: the old decorative ".recenter-btn" (🧭) and its rules.
+        That button was purely cosmetic — its click handler (at the bottom
+        of this file) only fired a window resize event and never touched
+        the camera. It's gone now so there's only ONE real Recenter button
+        left: the one index.ts creates itself (#recenterButton), which has
+        the actual working logic (getCurrentPosition + Camera.animateTo).
+      */
+
+      /* =========================================================
+         SIDEBAR — desktop: floating card. mobile: bottom sheet.
+         Same #sidebar element, just restyled. All child IDs
+         untouched so main.ts keeps working exactly as-is.
+      ========================================================= */
+      #sidebar {
+        background: var(--surface);
+        box-shadow: var(--shadow);
+        z-index: 30;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      #sidebar h1 {
+        display: none; /* the big page title is redundant with .topbar now */
+      }
+
+      #sidebar h3 {
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--text-muted);
+        margin: 20px 0 8px;
+      }
+
+      .settings {
+        margin-top: 0.65rem;
+      }
+      .settings label {
+        display: block;
+        font-size: 13px;
+        color: var(--text-muted);
+        margin-bottom: 4px;
+      }
+      .settings input[type="text"],
+      .settings input[type="number"],
+      .settings select {
+        width: 100%;
+        padding: 10px 12px;
+        font-size: 15px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        background: var(--surface);
+        min-height: 44px; /* touch target */
+      }
+      .settings input[type="color"] {
+        width: 44px;
+        height: 44px;
+        padding: 2px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+      }
+      .settings input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+      }
+
+      .settings pre {
+        padding: 0.5rem;
+        background: var(--surface-muted);
+        border-radius: var(--radius-sm);
+        font-size: 12px;
+        overflow-x: auto;
+      }
+
+      /* Collapsible advanced sections */
+      details {
+        border-top: 1px solid var(--border);
+        padding-top: 8px;
+        margin-top: 8px;
+      }
+      details > summary {
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-muted);
+        list-style: none;
+        padding: 8px 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      details > summary::-webkit-details-marker {
+        display: none;
+      }
+      details > summary::after {
+        content: "▾";
+        transition: transform 0.2s;
+      }
+      details[open] > summary::after {
+        transform: rotate(180deg);
+      }
+
+      /* Route pickers — always visible, front and center */
+      .route-picker {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 4px 0 12px;
+      }
+      .route-picker .field-group {
+        background: var(--surface-muted);
+        border-radius: var(--radius-md);
+        padding: 10px 12px;
+      }
+      .route-picker .field-group label {
+        margin-bottom: 2px;
+      }
+      .route-picker select,
+      .route-picker .ts-wrapper {
+        margin-top: 2px;
+      }
+
+      /* Controls row */
+      .controls-row {
+        display: flex;
+        gap: 8px;
+        margin: 12px 0 4px;
+      }
+      .controls-row button {
+        flex: 1;
+        min-height: 46px;
+        border: none;
+        border-radius: var(--radius-md);
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      #generate {
+        background: var(--accent);
+        color: white;
+      }
+      #generate:hover {
+        background: var(--accent-dark);
+      }
+      #reset,
+      #download {
+        background: var(--surface-muted);
+        color: var(--text);
+      }
+
+      #directionsList {
+        font-size: 13px;
+        padding-left: 1.1rem;
+      }
+
+      /* ---------- Sheet handle (mobile drag affordance) ---------- */
+      .sheet-handle {
+        display: none;
+      }
+
+      /* =========================================================
+         DESKTOP (≥ 900px): sidebar is a floating card, map fills
+         everything else. No more flex-sharing width with the map.
+      ========================================================= */
+      @media (min-width: 900px) {
+        #sidebar {
+          position: fixed;
+          top: calc(72px + var(--safe-top));
+          left: 12px;
+          bottom: 12px;
+          width: 340px;
+          border-radius: var(--radius-lg);
+          padding: 12px 18px 18px;
+        }
+      }
+
+      /* =========================================================
+         MOBILE (< 900px): sidebar becomes a bottom sheet.
+         Collapsed = just the handle + route pickers peeking up.
+         Expanded (.expanded class, toggled by the small script
+         below — does NOT touch main.ts) = full scrollable sheet.
+      ========================================================= */
+      @media (max-width: 899.98px) {
+        .topbar {
+          padding: 8px 14px;
+          font-size: 13px;
+        }
+
+        #sidebar {
+          position: fixed;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          width: 100%;
+          max-height: 82vh;
+          border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+          padding: 8px 16px calc(16px + var(--safe-bottom));
+          transform: translateY(calc(100% - 132px));
+          transition: transform 0.28s ease;
+        }
+        #sidebar.expanded {
+          transform: translateY(0);
+        }
+
+        .sheet-handle {
+          display: flex;
+          justify-content: center;
+          padding: 6px 0 10px;
+          cursor: pointer;
+        }
+        .sheet-handle span {
+          width: 40px;
+          height: 5px;
+          border-radius: 999px;
+          background: var(--border);
+        }
+      }
+
+      /* =========================================================
+         ✅ NEW (additive only): DARK MODE.
+         Almost everything above already reads colors from
+         --surface / --surface-muted / --border / --text /
+         --text-muted, so re-pointing those variables under a
+         `.dark-mode` class on <body> re-themes the sidebar, topbar,
+         floor selector, and all settings inputs automatically — no
+         existing rule above was touched or duplicated.
+
+         Note: this intentionally does NOT touch the 3D map render
+         itself (#map-container). Mappedin doesn't expose a safe
+         runtime dark-style switch, and faking it with a CSS filter
+         would also invert marker/label text inside the map,
+         making them unreadable — so the map keeps its normal
+         daytime look, only the app's own UI chrome goes dark.
+      ========================================================= */
+      body.dark-mode {
+        --surface: #1e1e21;
+        --surface-muted: #17171a;
+        --border: #333338;
+        --text: #f0f0f0;
+        --text-muted: #a0a0a5;
+      }
+
+      body.dark-mode #reset,
+      body.dark-mode #download {
+        color: var(--text);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <!-- Map fills the whole screen, always -->
+      <div id="map-container">
+        <div id="mappedin-map" style="width: 100%; height: 100%"></div>
+      </div>
+
+      <div class="topbar"><span class="dot"></span> Blue Dot Navigator</div>
+
+      <select id="floorSelector"></select>
+
+      <!--
+        ✅ REMOVED: the old decorative ".recenter-btn" (🧭) button that
+        lived here. index.ts creates the REAL floating recenter button
+        itself (id="recenterButton") and appends it directly to <body> —
+        so there's nothing to put here anymore. This avoids ever having
+        two recenter buttons on screen again.
+      -->
+
+      <!-- Sidebar: floating card (desktop) / bottom sheet (mobile).
+           All original IDs preserved — main.ts is untouched. -->
+      <div id="sidebar">
+        <div class="sheet-handle" id="sheetHandle"><span></span></div>
+
+        <h1>Blue Dot Location Generator</h1>
+
+        <!-- Always-visible: pick a route -->
+        <div class="route-picker">
+          <div class="field-group">
+            <label for="startCategory">From</label>
+            <select id="startCategory"></select>
+            <select id="startSpace"></select>
+          </div>
+          <div class="field-group">
+            <label for="endCategory">To</label>
+            <select id="endCategory"></select>
+            <select id="endSpace"></select>
+            <!-- ✅ NEW: the "Save as favorite" button (#favoriteButton) is
+                 created and appended here by index.ts at runtime — no
+                 static markup needed, matching the pattern used for
+                 recenterButton / muteButton / viewModeButton. -->
+          </div>
+        </div>
+
+        <div class="controls-row">
+          <button id="generate">Generate</button>
+          <button id="reset">Reset</button>
+          <button id="download">Download</button>
+          <!--
+            ✅ REMOVED: <button id="recenterButton">🎯 Recenter</button>
+            used to be here. Having it in the HTML meant index.ts's
+            "if (!recenterButton) { ...create floating one... }" check
+            found this one already existing and reused IT instead of
+            creating the floating map-corner button — so the real logic
+            was stuck inside the sidebar/drawer the whole time, exactly
+            the problem you wanted fixed. Deleting it here lets index.ts
+            create its own floating button, appended straight to <body>,
+            always visible over the map regardless of sidebar state.
+          -->
+        </div>
+
+        <!-- Advanced / dev-only settings, tucked away and closed
+             by default so a normal user never sees them. -->
+        <details>
+          <summary>Venue Settings</summary>
+          <div class="settings">
+            <label for="mapId">Map Id</label>
+            <input id="mapId" type="text" value="6878b313316caa000b260be4" />
+          </div>
+          <div class="settings">
+            <label for="key">Key</label>
+            <input id="key" type="text" value="mik_LunzGF0BwzLu5wKnO569c07af" />
+          </div>
+          <div class="settings">
+            <label for="secret">Secret</label>
+            <input
+              id="secret"
+              type="text"
+              value="mis_Tu9IawAmFN1TK6h4HekLxdhpwCflxEx8WGTNfHa80FQ8b8a100f"
+            />
+          </div>
+          <div class="settings">
+            <label for="environment">Environment</label>
+            <select name="environment" id="environment">
+              <option value="us">North America</option>
+              <option value="eu">Europe</option>
+              <option value="ind">India</option>
+            </select>
+          </div>
+          <div class="settings">
+            <button id="loadMap" type="button">Load Map</button>
+          </div>
+        </details>
+
+        <details>
+          <summary>Data Generation Settings</summary>
+          <div class="settings">
+            <label for="jitter">Jitter (m)</label>
+            <input id="jitter" type="number" min="0" value="0" />
+          </div>
+          <div class="settings">
+            <label for="accuracy">Accuracy</label>
+            <input id="accuracy" type="number" min="1" value="5" />
+          </div>
+          <div class="settings">
+            <label for="updateDistance"
+              >Distance Between Updates (meters)</label
+            >
+            <input id="updateDistance" type="number" min="1" value="2" />
+          </div>
+        </details>
+
+        <details>
+          <summary>Playback Settings</summary>
+          <div class="settings">
+            <label for="speed">Time between updates (ms)</label>
+            <input id="speed" type="number" min="1" value="2000" />
+          </div>
+          <div class="settings">
+            <label for="showPath">Show path</label>
+            <input id="showPath" type="checkbox" checked="true" />
+          </div>
+          <div class="settings">
+            <label for="pathColor">Path Color</label>
+            <input id="pathColor" type="color" value="#4b90e2" />
+          </div>
+          <div class="settings">
+            <label for="pathRadius">Path Near Radius</label>
+            <input
+              id="pathRadius"
+              type="number"
+              min="0"
+              value="0.2"
+              step="0.1"
+            />
+          </div>
+          <div class="settings">
+            <label for="startLocationColor">Start Location Color</label>
+            <input id="startLocationColor" type="color" />
+          </div>
+          <div class="settings">
+            <label for="destinationLocationColor"
+              >Destination Location Color</label
+            >
+            <input id="destinationLocationColor" type="color" />
+          </div>
+        </details>
+
+        <details>
+          <summary>Turn-by-Turn Directions</summary>
+          <ul id="directionsList"></ul>
+        </details>
+
+        <details>
+          <summary>Debug</summary>
+          <div class="settings">
+            BlueDot position update:
+            <pre id="bluedotupdate">{}</pre>
+            BlueDot status:
+            <pre id="bluedotstatus">{}</pre>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <script type="module" src="./src/index.ts"></script>
+
+    <!-- ⚠️ UI-ONLY script — does not touch main.ts's own listeners or
+         state in any way. Uses addEventListener (never .onclick), so it
+         runs alongside generateButton.onclick etc. without overwriting
+         anything. Purely handles expanding/collapsing the mobile sheet.
+
+         ✅ REMOVED: the old "recenterBtn" lookup and its no-op
+         window.dispatchEvent(new Event("resize")) click handler — that
+         button no longer exists in the HTML, and the real recenter
+         button (created by index.ts) already has its own real click
+         handler wired up directly in index.ts. Nothing needs to happen
+         here for it anymore. -->
+    <script>
+      (function () {
+        var sidebar = document.getElementById("sidebar");
+        var handle = document.getElementById("sheetHandle");
+        var generateBtn = document.getElementById("generate");
+
+        function toggleSheet() {
+          sidebar.classList.toggle("expanded");
+        }
+
+        handle.addEventListener("click", toggleSheet);
+
+        // Auto-collapse the sheet after Generate so the map opens up —
+        // deferred with setTimeout so main.ts's own click handler (which
+        // builds the route) runs first, uninterrupted.
+        generateBtn.addEventListener("click", function () {
+          setTimeout(function () {
+            sidebar.classList.remove("expanded");
+          }, 150);
+        });
+      })();
+    </script>
+  </body>
+</html>
