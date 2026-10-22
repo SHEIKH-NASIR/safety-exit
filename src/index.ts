@@ -25,6 +25,10 @@ import { populateFloorSelector } from "./floorSelector";
 import { setSelectedFloor } from "./floorSelector";
 import { saveTemplateAsFile } from "./fileDownloader";
 import { DynamicPositionUpdater, getCurrentPosition } from "./positionUpdater";
+import { emergencyPanel } from "./emergency/emergencyPanel";
+import { exitRegistry } from "./emergency/exitRegistry";
+import { hazardStore } from "./emergency/hazardStore";
+import { incidentService } from "./emergency/incidentService";
 const professors: Record<string, string> = {
   "Dr. Smith": "Office 101",
   "Prof. John": "Office 202",
@@ -238,6 +242,11 @@ resetButton.onclick = () => {
   blueDotEnabled = false;
 
   followingBlueDot = true;
+
+  // Restore verified entrance and exit markers
+  if (emergencyPanel) {
+    emergencyPanel.renderMapMarkers();
+  }
 
   console.log("✅ Map reset complete (all markers cleared)");
 };
@@ -749,21 +758,40 @@ function setupCategoryDropdown(
   spaceSelect: HTMLSelectElement,
   spaces: Space[]
 ): any {
+  const verifiedEntrances = exitRegistry
+    .getVerifiedEntrances()
+    .map((e) => spaces.find((s) => s.id === e.spaceId))
+    .filter((s): s is Space => !!s);
+
+  const verifiedExits = exitRegistry
+    .getVerifiedEmergencyExits()
+    .map((e) => spaces.find((s) => s.id === e.spaceId))
+    .filter((s): s is Space => !!s);
+
+  const entranceExitSpaceIds = new Set(
+    exitRegistry.getAll().map((e) => e.spaceId)
+  );
+
   const categories: Record<string, Space[]> = {
-    Classrooms: spaces.filter((s) => s.name.startsWith("Classroom")),
-    Offices: spaces.filter((s) => s.name.startsWith("Office")),
-    Labs: spaces.filter((s) => s.name.toLowerCase().includes("lab")),
-    Canteens: spaces.filter((s) => s.name.toLowerCase().includes("canteen")),
+    "Building Entrances": verifiedEntrances,
+    "Emergency Exits": verifiedExits,
+    Classrooms: spaces.filter((s) => s.name && s.name.startsWith("Classroom")),
+    Offices: spaces.filter((s) => s.name && s.name.startsWith("Office")),
+    Labs: spaces.filter((s) => s.name && s.name.toLowerCase().includes("lab")),
+    Canteens: spaces.filter((s) => s.name && s.name.toLowerCase().includes("canteen")),
     Washrooms: spaces.filter(
       (s) =>
-        s.name.toLowerCase().includes("washroom") ||
-        s.name.toLowerCase().includes("toilet")
+        s.name &&
+        (s.name.toLowerCase().includes("washroom") ||
+          s.name.toLowerCase().includes("toilet"))
     ),
     Professors: spaces.filter((s) =>
-      Object.values(professors).includes(s.name)
+      s.name && Object.values(professors).includes(s.name)
     ),
     Other: spaces.filter(
       (s) =>
+        s.name &&
+        !entranceExitSpaceIds.has(s.id) &&
         !s.name.startsWith("Classroom") &&
         !s.name.startsWith("Office") &&
         !s.name.toLowerCase().includes("lab") &&
@@ -793,6 +821,32 @@ function setupCategoryDropdown(
   categorySelect.onchange = () => {
     const selectedCategory = categorySelect.value;
     ts.clearOptions();
+
+    if (selectedCategory === "Emergency Exits") {
+      ts.addOption({ value: "", text: "Choose an emergency exit..." });
+      ts.setValue("");
+      exitRegistry.getVerifiedEmergencyExits().forEach((exit) => {
+        ts.addOption({
+          value: exit.spaceId,
+          text: `🚨 ${exit.name} [${exit.buildingName} - ${exit.floorName}]`,
+        });
+      });
+      ts.refreshOptions(false);
+      return;
+    }
+
+    if (selectedCategory === "Building Entrances") {
+      ts.addOption({ value: "", text: "Choose a building entrance..." });
+      ts.setValue("");
+      exitRegistry.getVerifiedEntrances().forEach((entrance) => {
+        ts.addOption({
+          value: entrance.spaceId,
+          text: `🚪 ${entrance.name} [${entrance.buildingName} - ${entrance.floorName}]`,
+        });
+      });
+      ts.refreshOptions(false);
+      return;
+    }
 
     if (selectedCategory === "Professors") {
       ts.addOption({ value: "", text: "Choose a professor..." });
@@ -1211,7 +1265,25 @@ async function init(mapDataOptions: TGetMapDataOptions) {
       const end = mapData.getById("space", endSpaceSelector.value);
 
       if (start && end) {
-        const directions = mapData.getDirections(start, end);
+        const zones = hazardStore.getMappedinZones(mapData);
+        const directions =
+          zones.length > 0
+            ? mapData.getDirections(start, end, { zones })
+            : mapData.getDirections(start, end);
+
+        if (!directions) {
+          console.warn("⚠️ No route found between start and end!");
+          if (zones.length > 0) {
+            alert(
+              "⚠️ ROUTE BLOCKED BY ACTIVE HAZARDS: All walkable paths between these locations are currently impassable due to reported hazard zones. Please select an alternative route or use CampusResQ 'Find Nearest Safe Exit'."
+            );
+          } else {
+            alert(
+              "No walkable path could be found between the selected locations."
+            );
+          }
+          return;
+        }
 
         if (directions) {
           const lastStep =
@@ -1840,6 +1912,65 @@ async function init(mapDataOptions: TGetMapDataOptions) {
     }
   });
 
+  // ------------------ SOS RESCUE BROADCAST ------------------
+  let sosButton = document.getElementById(
+    "sosButton"
+  ) as HTMLButtonElement | null;
+
+  if (!sosButton) {
+    sosButton = document.createElement("button");
+    sosButton.id = "sosButton";
+    sosButton.textContent = "🆘";
+    sosButton.title = "Broadcast Emergency SOS link to rescue responders";
+    sosButton.style.position = "fixed";
+    sosButton.style.bottom = "180px";
+    sosButton.style.right = "16px";
+    sosButton.style.width = "44px";
+    sosButton.style.height = "44px";
+    sosButton.style.borderRadius = "50%";
+    sosButton.style.border = "none";
+    sosButton.style.background = "#d93025";
+    sosButton.style.color = "#fff";
+    sosButton.style.fontSize = "18px";
+    sosButton.style.display = "flex";
+    sosButton.style.alignItems = "center";
+    sosButton.style.justifyContent = "center";
+    sosButton.style.cursor = "pointer";
+    sosButton.style.boxShadow = "0 2px 10px rgba(217,48,37,0.45)";
+    sosButton.style.zIndex = "9997";
+    document.body.appendChild(sosButton);
+
+    sosButton.addEventListener("click", async () => {
+      if (!startSpaceSelector.value) {
+        showToast("Pick where you are (From) first to share your SOS location");
+        setTimeout(hideToast, 2500);
+        return;
+      }
+      const url = new URL(window.location.href);
+      url.search = "";
+      url.searchParams.set("meet", startSpaceSelector.value);
+      url.searchParams.set("sos", "true");
+      const sosUrl = url.toString();
+
+      const victimSpace = mapData.getById("space", startSpaceSelector.value);
+      incidentService.createIncident({
+        reportedLocation: `${victimSpace?.name || startSpaceSelector.value} (SOS)`,
+        locationSpaceId: startSpaceSelector.value,
+        incidentType: "sos",
+        severity: "critical",
+        notes: "Emergency SOS broadcast created by user.",
+      });
+
+      try {
+        await navigator.clipboard.writeText(sosUrl);
+        showToast("🆘 SOS Link copied! Share with responders to direct them to your location.");
+        setTimeout(hideToast, 3500);
+      } catch {
+        window.prompt("Copy this SOS Rescue link:", sosUrl);
+      }
+    });
+  }
+
   // Load a shared "meet me here" link, if present. This only pre-fills
   // the DESTINATION ("To") — the person opening it still needs to pick
   // their own current location as the start, then hit Generate
@@ -1865,12 +1996,19 @@ async function init(mapDataOptions: TGetMapDataOptions) {
     onEndSpaceChange({ target: { value: meetSpaceId } });
     updateFavoriteButtonState();
 
-    // Don't auto-generate — there's no valid "start" yet. Just prompt the
-    // person to pick where THEY are, then Generate themselves.
-    showToast(
-      `📍 Destination set to ${meetSpace.name} — pick "From" (where you are) and tap Generate`
-    );
-    setTimeout(hideToast, 5000);
+    const isSos = params.get("sos") === "true";
+    if (isSos) {
+      emergencyPanel.setEmergencyMode(true);
+      showToast(
+        `🚨 SOS RESCUE ALERT: Victim located at ${meetSpace.name}! Select your current location (From) and tap Generate.`
+      );
+      setTimeout(hideToast, 6000);
+    } else {
+      showToast(
+        `📍 Destination set to ${meetSpace.name} — pick "From" (where you are) and tap Generate`
+      );
+      setTimeout(hideToast, 5000);
+    }
   })();
 
   // ------------------ FAVORITE DESTINATIONS ------------------
@@ -2018,6 +2156,50 @@ async function init(mapDataOptions: TGetMapDataOptions) {
 
   updateFavoriteButtonState();
   buildFavoriteChips(mapData.getByType("space"));
+
+  // ------------------ CAMPUSRESQ EMERGENCY INITIALIZATION ------------------
+  emergencyPanel.init(mapData, mapView, {
+    getCurrentStartSpace: () => {
+      if (!startSpaceSelector.value) return undefined;
+      return mapData.getById("space", startSpaceSelector.value);
+    },
+    setDestinationSpace: (spaceId: string) => {
+      const space = mapData.getById("space", spaceId);
+      const exit = exitRegistry.getBySpaceId(spaceId);
+      const displayName = exit ? exit.name : (space ? space.name : spaceId);
+
+      if (endTomSelect && typeof endTomSelect.addOption === "function") {
+        endTomSelect.addOption({ value: spaceId, text: displayName });
+        endTomSelect.setValue(spaceId);
+      }
+      endSpaceSelector.value = spaceId;
+      onEndSpaceChange({ target: { value: spaceId } });
+      updateFavoriteButtonState();
+    },
+    setStartSpace: (spaceId: string) => {
+      const space = mapData.getById("space", spaceId);
+      const exit = exitRegistry.getBySpaceId(spaceId);
+      const displayName = exit ? exit.name : (space ? space.name : spaceId);
+
+      if (startTomSelect && typeof startTomSelect.addOption === "function") {
+        startTomSelect.addOption({ value: spaceId, text: displayName });
+        startTomSelect.setValue(spaceId);
+      }
+      startSpaceSelector.value = spaceId;
+      onStartSpaceChange({ target: { value: spaceId } });
+    },
+    onRouteGenerated: (directions: any, destinationSpace: Space) => {
+      generateButton.click();
+    },
+    onClearNavigation: () => {
+      mapView.Navigation.clear();
+      positions = undefined;
+      fakePositionUpdater.reset();
+      mapView.BlueDot.disable();
+      blueDotEnabled = false;
+      hideInstructionBanner();
+    },
+  });
 
   let setSpaceMarker: Marker | undefined;
 
