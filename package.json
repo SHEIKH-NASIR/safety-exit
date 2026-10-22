@@ -5,21 +5,26 @@
   "main": "index.html",
   "scripts": {
     "start": "parcel index.html",
-    "build": "parcel build index.html"
+    "build": "parcel build index.html --no-minify"
   },
   "dependencies": {
-    "@mappedin/mappedin-js": "beta",
     "@mappedin/3d-assets": "^0.0.8",
-    "parcel-bundler": "1.6.1",
     "@mappedin/dynamic-focus": "latest",
+    "@mappedin/mappedin-js": "beta",
     "@types/geodesy": "^2.2.3",
-    "geodesy": "2.4.0"
+    "geodesy": "2.4.0",
+    "parcel-bundler": "^1.12.4"
   },
   "devDependencies": {
+    "@babel/core": "^7.29.7",
+    "@babel/preset-env": "^7.29.7",
     "typescript": "4.4.4"
   },
   "resolutions": {
     "@babel/preset-env": "7.13.8"
   },
-  "keywords": ["typescript", "javascript"]
+  "keywords": [
+    "typescript",
+    "javascript"
+  ]
 }

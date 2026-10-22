@@ -2726,7 +2726,7 @@ loadMapButton.onclick = () => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker
-      .register("/service-worker.ts")
+      .register("./service-worker.ts")
       .then((reg) => console.log("✅ SW registered:", reg))
       .catch((err) => console.warn("❌ SW registration failed:", err));
   });
