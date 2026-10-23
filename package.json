@@ -4,8 +4,8 @@
   "description": "CampusResQ - Emergency Exit and Safe Route Finder",
   "source": "index.html",
   "scripts": {
-    "start": "parcel index.html",
-    "build": "parcel build index.html --no-scope-hoist"
+    "start": "parcel index.html --cache-dir .cache",
+    "build": "parcel build index.html --no-scope-hoist --cache-dir .cache"
   },
   "dependencies": {
     "@mappedin/3d-assets": "^0.0.8",
