@@ -417,6 +417,19 @@
 
       <select id="floorSelector"></select>
 
+      <!-- Shared Active Incident Red-Zone Legend Banner -->
+      <div id="sharedIncidentBanner" style="display: none; position: fixed; top: 60px; left: 12px; z-index: 25; background: rgba(255, 255, 255, 0.96); border: 1px solid #f87171; border-left: 4px solid #ef4444; border-radius: 8px; padding: 8px 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.15); max-width: 320px; font-size: 12px; backdrop-filter: blur(4px);">
+        <div style="font-weight: 700; color: #b91c1c; display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+          <span style="display: flex; align-items: center; gap: 4px;"><span>🚨</span> <span id="sharedIncidentTitle">Active SOS Incident Red Zones</span></span>
+          <span id="sharedIncidentSyncBadge" style="font-size: 9px; background: #dcfce7; color: #15803d; padding: 2px 6px; border-radius: 4px; font-weight: 700;">SYNCED</span>
+        </div>
+        <div id="sharedIncidentDetails" style="color: #475569; font-size: 11px; margin-bottom: 4px;">Loading shared restrictions...</div>
+        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: #64748b; border-top: 1px solid #fee2e2; padding-top: 4px;">
+          <span style="display: flex; align-items: center; gap: 3px;">🔴 Active Hazard Zone</span>
+          <span style="display: flex; align-items: center; gap: 3px;">🟢 Safe Route</span>
+        </div>
+      </div>
+
       <!--
         ✅ REMOVED: the old decorative ".recenter-btn" (🧭) button that
         lived here. index.ts creates the REAL floating recenter button
@@ -432,55 +445,119 @@
 
         <h1>Blue Dot Location Generator</h1>
 
-        <!-- Always-visible: pick a route (Step 1 to Step 4 building-wise navigation) -->
+        <!-- Always-visible: pick a route (Independent Start & Destination selection) -->
         <div class="route-picker">
-          <!-- Step 1: Select Building -->
-          <div class="field-group" style="margin-bottom: 6px;">
-            <label for="navBuildingSelector" style="font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 4px;">
-              <span>🏢</span> <span>1. Campus Building</span>
-            </label>
-            <select id="navBuildingSelector" style="width: 100%; padding: 8px 10px; font-weight: 600; border-radius: 8px; border: 1px solid var(--border); background: var(--surface);">
-              <option value="fs_6878b4d517d37f000bb0c288">Main Building / School</option>
-              <option value="fs_6878b1ed316caa000b260be2" selected>Office Building 1</option>
-              <option value="fs_687ce890e964ae000bd1b0e2">Waterloo Venue</option>
-            </select>
+          <!-- Start Location Section -->
+          <div id="startDashboardSection" class="field-group" style="margin-bottom: 8px; border-left: 3px solid #0284c7; padding: 8px 10px;">
+            <div style="font-weight: 700; color: #0369a1; display: flex; align-items: center; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
+              <span style="display: flex; align-items: center; gap: 4px;"><span>📍</span> <span>Start (From)</span></span>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span id="startFloorBadge" style="font-size: 10px; background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 6px; font-weight: 700;">Level 1</span>
+                <button id="btnToggleStartDashboard" type="button" aria-expanded="true" title="Toggle Start Dashboard" style="background: none; border: none; cursor: pointer; font-size: 11px; color: #0369a1; padding: 2px 4px; display: flex; align-items: center; justify-content: center;">
+                  <span id="startDashboardToggleIcon">▼</span>
+                </button>
+              </div>
+            </div>
+
+            <div id="startDashboardContent">
+
+            <div style="margin-bottom: 6px;">
+              <label for="startBuildingSelector" style="font-size: 11px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 2px;">
+                Start Building
+              </label>
+              <select id="startBuildingSelector" style="width: 100%; padding: 6px 8px; font-size: 13px; font-weight: 600; border-radius: 6px; border: 1px solid var(--border); background: var(--surface);">
+                <option value="fs_6878b4d517d37f000bb0c288">Main Building / School</option>
+                <option value="fs_6878b1ed316caa000b260be2" selected>Office Building 1</option>
+                <option value="fs_687ce890e964ae000bd1b0e2">Waterloo Venue</option>
+              </select>
+              <!-- Legacy alias for existing tests -->
+              <select id="navBuildingSelector" style="display: none;"></select>
+            </div>
+
+            <div style="margin-bottom: 6px;" id="startFloorFieldGroup">
+              <label for="startFloorSelector" style="font-size: 11px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 2px;">
+                Start Floor
+              </label>
+              <select id="startFloorSelector" style="width: 100%; padding: 6px 8px; font-size: 13px; font-weight: 600; border-radius: 6px; border: 1px solid var(--border); background: var(--surface);"></select>
+              <!-- Legacy alias for existing tests -->
+              <select id="navFloorSelector" style="display: none;"></select>
+            </div>
+
+            <div>
+              <label for="startSpace" style="font-size: 11px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 2px;">
+                Start Location
+              </label>
+              <select id="startCategory" style="display: none;"></select>
+              <select id="startSpace"></select>
+            </div>
+            </div>
           </div>
 
-          <!-- Step 2: Select Floor -->
-          <div class="field-group" id="navFloorFieldGroup" style="margin-bottom: 6px;">
-            <label for="navFloorSelector" style="font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 4px;">
-              <span>📶</span> <span>2. Building Floor</span>
-            </label>
-            <select id="navFloorSelector" style="width: 100%; padding: 8px 10px; font-weight: 600; border-radius: 8px; border: 1px solid var(--border); background: var(--surface);"></select>
+          <!-- Destination Section -->
+          <div id="destDashboardSection" class="field-group" style="margin-bottom: 8px; border-left: 3px solid #d97706; padding: 8px 10px;">
+            <div style="font-weight: 700; color: #b45309; display: flex; align-items: center; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
+              <span style="display: flex; align-items: center; gap: 4px;"><span>🎯</span> <span>Destination (To)</span></span>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span id="destFloorBadge" style="font-size: 10px; background: #fef3c7; color: #b45309; padding: 2px 6px; border-radius: 6px; font-weight: 700;">Level 1</span>
+                <button id="btnToggleDestDashboard" type="button" aria-expanded="true" title="Toggle Destination Dashboard" style="background: none; border: none; cursor: pointer; font-size: 11px; color: #b45309; padding: 2px 4px; display: flex; align-items: center; justify-content: center;">
+                  <span id="destDashboardToggleIcon">▼</span>
+                </button>
+              </div>
+            </div>
+
+            <div id="destDashboardContent">
+
+            <div style="margin-bottom: 6px;">
+              <label for="destBuildingSelector" style="font-size: 11px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 2px;">
+                Destination Building
+              </label>
+              <select id="destBuildingSelector" style="width: 100%; padding: 6px 8px; font-size: 13px; font-weight: 600; border-radius: 6px; border: 1px solid var(--border); background: var(--surface);">
+                <option value="fs_6878b4d517d37f000bb0c288">Main Building / School</option>
+                <option value="fs_6878b1ed316caa000b260be2" selected>Office Building 1</option>
+                <option value="fs_687ce890e964ae000bd1b0e2">Waterloo Venue</option>
+              </select>
+            </div>
+
+            <div style="margin-bottom: 6px;" id="destFloorFieldGroup">
+              <label for="destFloorSelector" style="font-size: 11px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 2px;">
+                Destination Floor
+              </label>
+              <select id="destFloorSelector" style="width: 100%; padding: 6px 8px; font-size: 13px; font-weight: 600; border-radius: 6px; border: 1px solid var(--border); background: var(--surface);"></select>
+            </div>
+
+            <div>
+              <label for="endSpace" style="font-size: 11px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 2px;">
+                Destination Location
+              </label>
+              <select id="endCategory" style="display: none;"></select>
+              <select id="endSpace"></select>
+            </div>
+            </div>
           </div>
 
-          <!-- Step 3: Starting Location -->
-          <div class="field-group">
-            <label for="startCategory" style="font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 4px;">
-              <span>📍</span> <span>3. Starting Location (From)</span>
-            </label>
-            <select id="startCategory"></select>
-            <select id="startSpace"></select>
+          <!-- Feature 5: Map-based Start & Destination Selection -->
+          <div style="display: flex; gap: 6px; margin: 8px 0 4px 0;">
+            <button id="btnPickStartOnMap" type="button" style="flex: 1; padding: 6px 8px; font-size: 11px; font-weight: 700; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
+              <span>📍</span> <span>Select Start on Map</span>
+            </button>
+            <button id="btnPickDestOnMap" type="button" style="flex: 1; padding: 6px 8px; font-size: 11px; font-weight: 700; background: #fef3c7; color: #b45309; border: 1px solid #fde68a; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
+              <span>🎯</span> <span>Select Destination on Map</span>
+            </button>
+            <button id="btnCancelMapPick" type="button" style="display: none; padding: 6px 8px; font-size: 11px; font-weight: 700; background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; border-radius: 6px; cursor: pointer;">
+              <span>✕</span> <span>Cancel</span>
+            </button>
           </div>
-
-          <!-- Step 4: Destination -->
-          <div class="field-group">
-            <label for="endCategory" style="font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 4px;">
-              <span>🎯</span> <span>4. Destination (To)</span>
-            </label>
-            <select id="endCategory"></select>
-            <select id="endSpace"></select>
-            <!-- ✅ NEW: the "Save as favorite" button (#favoriteButton) is
-                 created and appended here by index.ts at runtime — no
-                 static markup needed, matching the pattern used for
-                 recenterButton / muteButton / viewModeButton. -->
-          </div>
+          <div id="mapPickStatus" style="display: none; font-size: 11px; padding: 6px 8px; border-radius: 6px; margin-bottom: 6px; background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; font-weight: 600;"></div>
         </div>
 
         <div class="controls-row">
-          <button id="generate">Generate</button>
-          <button id="reset">Reset</button>
-          <button id="download">Download</button>
+          <button id="generate" type="button" style="flex: 1.5; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px;">
+            <span>🗺️</span> <span>Generate Route</span>
+          </button>
+          <button id="reset" type="button" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 4px;">
+            <span>🔄</span> <span>Reset</span>
+          </button>
+          <button id="download" type="button" style="flex: 0.9; font-size: 13px;">Download</button>
         </div>
 
         <button id="btnOpenSosDashboard" type="button" style="width: 100%; margin: 8px 0; background: linear-gradient(135deg, #d93025, #b71c1c); color: white; border: none; border-radius: var(--radius-md); font-weight: 700; font-size: 14px; padding: 12px 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(217,48,37,0.35); transition: transform 0.15s ease;">
@@ -493,18 +570,18 @@
           <summary>Venue Settings</summary>
           <div class="settings">
             <label for="mapId">Map Id</label>
-            <input id="mapId" type="text" value="6878b313316caa000b260be4" />
+            <input id="mapId" type="text" placeholder="Mappedin Venue Map ID" />
           </div>
           <div class="settings">
             <label for="key">Key</label>
-            <input id="key" type="text" value="mik_LunzGF0BwzLu5wKnO569c07af" />
+            <input id="key" type="password" placeholder="Mappedin Client Key" />
           </div>
           <div class="settings">
             <label for="secret">Secret</label>
             <input
               id="secret"
-              type="text"
-              value="mis_Tu9IawAmFN1TK6h4HekLxdhpwCflxEx8WGTNfHa80FQ8b8a100f"
+              type="password"
+              placeholder="Mappedin Client Secret"
             />
           </div>
           <div class="settings">

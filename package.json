@@ -5,7 +5,7 @@
   "source": "index.html",
   "scripts": {
     "start": "parcel index.html",
-    "build": "parcel build index.html --no-scope-hoist"
+    "build": "parcel build index.html --cache-dir .parcel-cache-build --no-scope-hoist"
   },
   "dependencies": {
     "@mappedin/3d-assets": "^0.0.8",

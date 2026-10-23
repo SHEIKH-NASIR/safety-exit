@@ -10,7 +10,7 @@ import { MapData, TDirectionZone } from "@mappedin/mappedin-js";
 
 type HazardListener = (hazards: Hazard[]) => void;
 
-function createCirclePolygon(
+export function createCirclePolygon(
   centerLat: number,
   centerLon: number,
   radiusMeters: number,
@@ -41,6 +41,67 @@ function createCirclePolygon(
     geometry: {
       type: "Polygon",
       coordinates: [coords],
+    },
+  };
+}
+
+
+export function createCorridorPolygonFromPoints(
+  p1: { latitude: number; longitude: number },
+  p2: { latitude: number; longitude: number },
+  widthMeters: number = 4.5
+): any {
+  const dLat = p2.latitude - p1.latitude;
+  const dLon = p2.longitude - p1.longitude;
+  const len = Math.hypot(dLat, dLon);
+  if (len === 0) {
+    return createCirclePolygon(p1.latitude, p1.longitude, widthMeters / 2);
+  }
+  const latMidRad = (p1.latitude * Math.PI) / 180;
+  const metersPerDegLat = 111139;
+  const metersPerDegLon = 111139 * Math.cos(latMidRad);
+
+  const dxMeters = dLon * metersPerDegLon;
+  const dyMeters = dLat * metersPerDegLat;
+  const lengthMeters = Math.hypot(dxMeters, dyMeters);
+
+  const perpX = (-dyMeters / lengthMeters) * (widthMeters / 2);
+  const perpY = (dxMeters / lengthMeters) * (widthMeters / 2);
+
+  const offsetLon = perpX / metersPerDegLon;
+  const offsetLat = perpY / metersPerDegLat;
+
+  const c1 = [p1.longitude + offsetLon, p1.latitude + offsetLat];
+  const c2 = [p2.longitude + offsetLon, p2.latitude + offsetLat];
+  const c3 = [p2.longitude - offsetLon, p2.latitude - offsetLat];
+  const c4 = [p1.longitude - offsetLon, p1.latitude - offsetLat];
+
+  return {
+    type: "Feature",
+    properties: {},
+    geometry: {
+      type: "Polygon",
+      coordinates: [[c1, c2, c3, c4, c1]],
+    },
+  };
+}
+
+export function createPolygonFromPoints(
+  points: { latitude: number; longitude: number }[]
+): any {
+  if (points.length < 3) {
+    throw new Error("A polygon requires at least 3 points");
+  }
+  const ring = points.map((p) => [p.longitude, p.latitude]);
+  if (ring[0][0] !== ring[ring.length - 1][0] || ring[0][1] !== ring[ring.length - 1][1]) {
+    ring.push([ring[0][0], ring[0][1]]);
+  }
+  return {
+    type: "Feature",
+    properties: {},
+    geometry: {
+      type: "Polygon",
+      coordinates: [ring],
     },
   };
 }
@@ -413,6 +474,7 @@ export class HazardStore {
     floorName?: string;
     locationType: LocationRestrictionType;
     locationId?: string;
+    sectionId?: string;
     locationName: string;
     reason: HazardReason | string;
     severity?: HazardSeverity;
@@ -420,6 +482,7 @@ export class HazardStore {
     radiusMeters?: number;
     status?: HazardStatus;
     polygon?: any;
+    drawnPoints?: { latitude: number; longitude: number }[];
   }): Hazard {
     const id = data.id || `haz-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     const radiusMeters =
@@ -428,6 +491,8 @@ export class HazardStore {
         ? 5.5
         : data.locationType === "corridor"
         ? 6.0
+        : data.locationType === "corridor-section"
+        ? 5.0
         : data.locationType === "exit" || data.locationType === "entrance"
         ? 4.5
         : data.locationType === "floor"
@@ -456,6 +521,7 @@ export class HazardStore {
       floorName: data.floorName || (data.floorId === "all" ? "All Floors" : "Level 1"),
       locationType: data.locationType,
       locationId: data.locationId,
+      sectionId: data.sectionId || (data.locationType === "corridor-section" ? data.locationId : undefined),
       locationName: data.locationName,
       reason: data.reason,
       severity: data.severity ?? "blocked",
@@ -464,6 +530,7 @@ export class HazardStore {
       reportedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       status: data.status ?? "Confirmed",
       polygon,
+      drawnPoints: data.drawnPoints,
     };
 
     this.hazards.set(id, hazard);
@@ -551,7 +618,7 @@ export class HazardStore {
     const normB = buildingId ? this.normalizeBuildingId(buildingId) : null;
     return active.some((h) => {
       if (normB && this.normalizeBuildingId(h.buildingId) !== normB) return false;
-      return h.locationId === locationId || h.id === locationId;
+      return h.locationId === locationId || h.id === locationId || h.sectionId === locationId;
     });
   }
 
@@ -568,9 +635,61 @@ export class HazardStore {
     });
   }
 
+  importIncidentHazards(hazards: (Hazard | any)[]): void {
+    if (!hazards || !Array.isArray(hazards)) return;
+    for (const raw of hazards) {
+      if (!raw || !raw.id) continue;
+      const id = String(raw.id);
+      const name = String(raw.name || "Emergency Hazard");
+      const buildingId = this.normalizeBuildingId(raw.buildingId);
+      const floorId = String(raw.floorId || "");
+      const lat = Number(raw.coordinates?.latitude);
+      const lon = Number(raw.coordinates?.longitude);
+      const radius = Number(raw.radiusMeters) || 4.5;
+      const status: HazardStatus =
+        raw.status === "Cleared" || raw.isCleared ? "Cleared" : "Confirmed";
+
+      let polygon = raw.polygon;
+      if (!polygon && !isNaN(lat) && !isNaN(lon)) {
+        polygon = createCirclePolygon(lat, lon, radius);
+      }
+
+      const hazard: Hazard = {
+        id,
+        name,
+        buildingId,
+        buildingName: raw.buildingName,
+        floorId,
+        floorName: raw.floorName,
+        locationType: raw.locationType || "area",
+        locationId: raw.locationId,
+        sectionId: raw.sectionId,
+        locationName: String(raw.locationName || name),
+        reason: raw.reason || "hazard",
+        severity: raw.severity || "blocked",
+        coordinates: {
+          latitude: isNaN(lat) ? 43.465085 : lat,
+          longitude: isNaN(lon) ? -80.5242 : lon,
+        },
+        radiusMeters: radius,
+        reportedAt: raw.reportedAt || new Date().toLocaleTimeString(),
+        status,
+        polygon,
+        drawnPoints: Array.isArray(raw.drawnPoints) ? raw.drawnPoints : undefined,
+      };
+
+      this.hazards.set(id, hazard);
+    }
+    this.notify();
+  }
+
   clearAll(): void {
     this.hazards.clear();
     this.notify();
+  }
+
+  clearAllHazards(): void {
+    this.clearAll();
   }
 
   subscribe(listener: HazardListener): () => void {
@@ -626,13 +745,47 @@ export class HazardStore {
         continue;
       }
 
-      if (!h.polygon) continue;
-      const floor = mapData.getById("floor", h.floorId);
-      zones.push({
-        geometry: h.polygon,
-        cost: Infinity,
-        floor: floor,
-      });
+      // If polygon is missing, create geometry around space, door, or coordinates
+      let geom = h.polygon;
+      if (!geom) {
+        if (h.locationId) {
+          const sp = mapData.getById("space", h.locationId);
+          const dr = mapData.getById("door", h.locationId);
+          if (sp?.geoJSON) geom = sp.geoJSON;
+          else if (sp?.center) geom = createCirclePolygon(sp.center.latitude, sp.center.longitude, h.radiusMeters || 5.5);
+          else if (dr?.geoJSON) geom = dr.geoJSON;
+          else if (dr?.center) geom = createCirclePolygon(dr.center.latitude, dr.center.longitude, h.radiusMeters || 4.5);
+        }
+        if (!geom && h.coordinates && !isNaN(h.coordinates.latitude) && !isNaN(h.coordinates.longitude)) {
+          geom = createCirclePolygon(h.coordinates.latitude, h.coordinates.longitude, h.radiusMeters || 5.0);
+        }
+      }
+
+      if (!geom) continue;
+
+      if (h.floorId === "all") {
+        const building = CONFIGURED_BUILDINGS.find(
+          (b) => this.normalizeBuildingId(b.id) === this.normalizeBuildingId(h.buildingId)
+        );
+        const floors = building?.floors || [];
+        for (const fl of floors) {
+          const flObj = mapData.getById("floor", fl.id);
+          if (flObj) {
+            zones.push({
+              geometry: geom,
+              cost: Infinity,
+              floor: flObj,
+            });
+          }
+        }
+      } else {
+        const floor = mapData.getById("floor", h.floorId);
+        zones.push({
+          geometry: geom,
+          cost: Infinity,
+          floor: floor,
+        });
+      }
     }
 
     return zones;

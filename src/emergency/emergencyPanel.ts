@@ -1,6 +1,7 @@
+import { corridorSectionRegistry } from "./corridorSections";
 import { MapData, MapView, Space, Door } from "@mappedin/mappedin-js";
 import { exitRegistry } from "./exitRegistry";
-import { hazardStore, CONFIGURED_BUILDINGS } from "./hazardStore";
+import { hazardStore, CONFIGURED_BUILDINGS, createCirclePolygon, createCorridorPolygonFromPoints, createPolygonFromPoints } from "./hazardStore";
 import { safeRouteService } from "./safeRouteService";
 import { incidentService } from "./incidentService";
 import {
@@ -18,6 +19,7 @@ export interface EmergencyPanelCallbacks {
   getCurrentStartSpace: () => Space | Door | undefined;
   setDestinationSpace: (spaceId: string) => void;
   setStartSpace: (spaceId: string) => void;
+  generateRoute?: (options?: { destinationId?: string; isEmergency?: boolean }) => boolean;
   onBuildingChanged?: (buildingId: string) => void;
   getCurrentBuildingId?: () => string;
 }
@@ -43,6 +45,18 @@ export class EmergencyPanel {
   private previewMarker: any = null;
   private unsubscribeHazardStore?: () => void;
 
+  // Map Drawing Feature State
+  private isDrawingMode: boolean = false;
+  private drawingPoints: { latitude: number; longitude: number }[] = [];
+  private drawingModeType: "corridor" | "polygon" = "polygon";
+  private drawingMarkers: any[] = [];
+  private drawingPreviewPath: any = null;
+  private drawingPreviewCentroidMarker: any = null;
+  private drawingFinalPolygon: any = null;
+  private activeHazardPaths: any[] = [];
+  private activeHazardShapes: any[] = [];
+  private drawingSpaceIds: Set<string> = new Set();
+
   init(mapData: MapData, mapView: MapView, callbacks: EmergencyPanelCallbacks) {
     this.mapData = mapData;
     this.mapView = mapView;
@@ -54,10 +68,18 @@ export class EmergencyPanel {
     this.createUI();
     this.renderMapMarkers();
 
+    // Attach click listener on MapView for draw-to-restrict feature
+    this.mapView.on("click", (event: any) => this.onMapClickForDrawing(event));
+
     // Subscribe to hazard updates to re-render markers, color spaces, and update active hazard lists
     this.unsubscribeHazardStore = hazardStore.subscribe(() => {
       this.renderMapMarkers();
       this.updateActiveHazardsList();
+    });
+
+    // Re-render markers on floor changes
+    this.mapView.on("floor-change", () => {
+      this.renderMapMarkers();
     });
 
     // Handle SOS link parameter if present in URL
@@ -72,8 +94,21 @@ export class EmergencyPanel {
     return this.isCollapsed;
   }
 
+  setBuildingId(buildingId: string) {
+    const normId = hazardStore.normalizeBuildingId(buildingId);
+    const building =
+      CONFIGURED_BUILDINGS.find((b) => hazardStore.normalizeBuildingId(b.id) === normId) ||
+      CONFIGURED_BUILDINGS[0];
+    this.currentBuildingId = building.id;
+    this.updateBuildingUI();
+    this.populateCustomHazardFormOptions();
+    this.renderScenarios();
+    this.renderMapMarkers();
+    this.updateActiveHazardsList();
+  }
+
   getCurrentBuildingId(): string {
-    return this.currentBuildingId;
+    return this.callbacks.getCurrentBuildingId?.() || this.currentBuildingId;
   }
 
   private checkSosUrlParams() {
@@ -404,23 +439,91 @@ export class EmergencyPanel {
             </select>
           </div>
 
-          <!-- 3. Location Type Selector -->
-          <div>
-            <label style="display:block; font-size:11px; font-weight:700; color:#475569; margin-bottom:2px;">3. Location Type to Restrict</label>
-            <select id="hazTypeSelect" style="width:100%; padding:6px 8px; font-size:12px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
-              <option value="room" selected>🚪 Room (Classroom, Office, Lab, Washroom)</option>
-              <option value="corridor">🚶 Corridor / Hallway</option>
-              <option value="exit">🏃 Emergency Exit / Entrance</option>
-              <option value="floor">🏢 Entire Floor</option>
-              <option value="area">📍 Other Mapped Area</option>
-            </select>
+          <!-- Selection Scope Mode -->
+          <div style="margin-bottom:6px;">
+            <label style="display:block; font-size:11px; font-weight:700; color:#475569; margin-bottom:3px;">Selection Scope Mode</label>
+            <div style="display:flex; flex-wrap:wrap; gap:8px; background:#f8fafc; padding:6px 10px; border-radius:6px; border:1px solid #e2e8f0;">
+              <label style="font-size:12px; font-weight:600; color:#1e293b; display:flex; align-items:center; gap:5px; cursor:pointer;">
+                <input type="radio" name="hazScopeMode" id="hazScopeWhole" value="whole" checked />
+                <span>🏢 Whole Space</span>
+              </label>
+              <label style="font-size:12px; font-weight:600; color:#1e293b; display:flex; align-items:center; gap:5px; cursor:pointer;">
+                <input type="radio" name="hazScopeMode" id="hazScopeSection" value="section" />
+                <span>🚶 Specific Corridor Section</span>
+              </label>
+              <label style="font-size:12px; font-weight:600; color:#1e293b; display:flex; align-items:center; gap:5px; cursor:pointer;">
+                <input type="radio" name="hazScopeMode" id="hazScopeDraw" value="draw" />
+                <span>✏️ Draw on Map</span>
+              </label>
+            </div>
+            <button type="button" id="btnDrawHazardOnMap" style="width:100%; margin-top:6px; background:#fef2f2; color:#b91c1c; border:1.5px dashed #ef4444; border-radius:6px; padding:6px 10px; font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+              <span>✏️</span> <span>Draw Restricted Area on Map</span>
+            </button>
           </div>
 
-          <!-- 4. Location Selector (Dynamically Populated) -->
-          <div>
-            <label style="display:block; font-size:11px; font-weight:700; color:#475569; margin-bottom:2px;">4. Specific Location</label>
-            <select id="hazLocationSelect" style="width:100%; padding:6px 8px; font-size:12px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
-            </select>
+          <!-- Dropdown Selection Container (Whole Space & Corridor Section) -->
+          <div id="dropdownControlsContainer">
+            <!-- 3. Location Type Selector -->
+            <div>
+              <label style="display:block; font-size:11px; font-weight:700; color:#475569; margin-bottom:2px;">3. Location Type to Restrict</label>
+              <select id="hazTypeSelect" style="width:100%; padding:6px 8px; font-size:12px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+                <option value="room" selected>🚪 Room (Classroom, Office, Lab, Washroom)</option>
+                <option value="corridor">🚶 Corridor / Hallway</option>
+                <option value="exit">🏃 Emergency Exit / Entrance</option>
+                <option value="floor">🏢 Entire Floor</option>
+                <option value="area">📍 Other Mapped Area</option>
+              </select>
+            </div>
+
+            <!-- 4. Location Selector (Dynamically Populated) -->
+            <div style="margin-top:6px;">
+              <label style="display:block; font-size:11px; font-weight:700; color:#475569; margin-bottom:2px;">4. Specific Location</label>
+              <select id="hazLocationSelect" style="width:100%; padding:6px 8px; font-size:12px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+              </select>
+            </div>
+          </div>
+
+          <!-- Dedicated Map Drawing Container -->
+          <div id="drawControlsContainer" style="display:none; background:#fff1f2; border:1.5px solid #fecdd3; border-radius:8px; padding:10px; margin-bottom:4px;">
+            <div style="font-size:11px; color:#9f1239; line-height:1.4; margin-bottom:8px;">
+              📌 <b>Map Drawing Active:</b> Click the map to mark boundary points, then finish the shape. Alternatively, mark 2 points along a corridor to create a corridor restriction polygon.
+            </div>
+            
+            <div style="display:flex; gap:12px; margin-bottom:8px; font-size:11px;">
+              <label style="font-weight:600; color:#1e293b; display:flex; align-items:center; gap:4px; cursor:pointer;">
+                <input type="radio" name="drawModeType" id="drawTypePolygon" value="polygon" checked />
+                <span>Custom Polygon (3+ pts)</span>
+              </label>
+              <label style="font-weight:600; color:#1e293b; display:flex; align-items:center; gap:4px; cursor:pointer;">
+                <input type="radio" name="drawModeType" id="drawTypeCorridor" value="corridor" />
+                <span>Corridor Segment (2 pts)</span>
+              </label>
+            </div>
+
+            <div id="corridorWidthContainer" style="display:none; margin-bottom:8px; font-size:11px; color:#475569; align-items:center; gap:6px;">
+              <label style="font-weight:700;">Corridor Width:</label>
+              <input type="number" id="drawCorridorWidth" value="4.5" min="1" max="25" step="0.5" style="width:55px; padding:2px 6px; font-size:11px; border:1px solid #cbd5e1; border-radius:4px;" />
+              <span>meters</span>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <span style="font-size:11px; font-weight:700; color:#0f172a;">
+                Plotted Points: <span id="drawPointsCount" style="color:#b91c1c; font-size:12px; font-weight:800;">0</span>
+              </span>
+              <div style="display:flex; gap:4px;">
+                <button type="button" id="btnFinishDrawing" style="background:#16a34a; color:#fff; border:none; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:700; cursor:pointer;" disabled>
+                  ✔️ Finish Shape
+                </button>
+                <button type="button" id="btnRedrawHazard" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:700; cursor:pointer;">
+                  🔄 Redraw
+                </button>
+                <button type="button" id="btnCancelDrawing" style="background:#fee2e2; color:#991b1b; border:1px solid #fca5a5; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:700; cursor:pointer;">
+                  ✕ Cancel
+                </button>
+              </div>
+            </div>
+
+            <div id="drawTargetInfo" style="font-size:11px; color:#64748b; font-weight:600; margin-top:2px;"></div>
           </div>
 
           <!-- 5. Reason -->
@@ -536,6 +639,58 @@ export class EmergencyPanel {
       });
     });
 
+    const scopeWhole = this.panelEl.querySelector("#hazScopeWhole") as HTMLInputElement;
+    const scopeSection = this.panelEl.querySelector("#hazScopeSection") as HTMLInputElement;
+    const scopeDraw = this.panelEl.querySelector("#hazScopeDraw") as HTMLInputElement;
+    const btnDrawHazardOnMap = this.panelEl.querySelector("#btnDrawHazardOnMap") as HTMLButtonElement;
+    const dropdownContainer = this.panelEl.querySelector("#dropdownControlsContainer") as HTMLElement;
+    const drawContainer = this.panelEl.querySelector("#drawControlsContainer") as HTMLElement;
+    const typeContainer = (this.panelEl.querySelector("#hazTypeSelect") as HTMLElement)?.parentElement;
+
+    const onScopeChange = () => {
+      if (scopeDraw?.checked) {
+        this.startDrawingMode();
+        return;
+      }
+      this.cancelDrawingMode(false);
+      const isSection = scopeSection?.checked;
+      if (dropdownContainer) dropdownContainer.style.display = "block";
+      if (drawContainer) drawContainer.style.display = "none";
+      if (typeContainer) {
+        typeContainer.style.display = isSection ? "none" : "block";
+      }
+      this.populateCustomHazardLocations();
+      this.updatePreviewHighlight();
+    };
+
+    scopeWhole?.addEventListener("change", onScopeChange);
+    scopeSection?.addEventListener("change", onScopeChange);
+    scopeDraw?.addEventListener("change", onScopeChange);
+    btnDrawHazardOnMap?.addEventListener("click", () => {
+      if (scopeDraw) scopeDraw.checked = true;
+      this.startDrawingMode();
+    });
+
+    const drawTypePolygon = this.panelEl.querySelector("#drawTypePolygon") as HTMLInputElement;
+    const drawTypeCorridor = this.panelEl.querySelector("#drawTypeCorridor") as HTMLInputElement;
+    const corridorWidthContainer = this.panelEl.querySelector("#corridorWidthContainer") as HTMLElement;
+
+    drawTypePolygon?.addEventListener("change", () => {
+      this.drawingModeType = "polygon";
+      if (corridorWidthContainer) corridorWidthContainer.style.display = "none";
+      this.redrawDrawing();
+    });
+
+    drawTypeCorridor?.addEventListener("change", () => {
+      this.drawingModeType = "corridor";
+      if (corridorWidthContainer) corridorWidthContainer.style.display = "flex";
+      this.redrawDrawing();
+    });
+
+    this.panelEl.querySelector("#btnFinishDrawing")?.addEventListener("click", () => this.finishDrawing());
+    this.panelEl.querySelector("#btnRedrawHazard")?.addEventListener("click", () => this.redrawDrawing());
+    this.panelEl.querySelector("#btnCancelDrawing")?.addEventListener("click", () => this.cancelDrawingMode(true));
+
     hazBuilding.addEventListener("change", () => {
       this.populateCustomHazardFloors();
       this.populateCustomHazardLocations();
@@ -616,6 +771,7 @@ export class EmergencyPanel {
 
     hazLocation.innerHTML = "";
 
+
     if (locType === "floor") {
       const opt = document.createElement("option");
       opt.value = floorId === "all" ? "all" : floorId;
@@ -648,6 +804,26 @@ export class EmergencyPanel {
     }
 
     // Otherwise: rooms, corridors, or areas from mapData
+    const isSectionScope = (this.panelEl.querySelector("#hazScopeSection") as HTMLInputElement)?.checked;
+    if (isSectionScope || locType === "corridor-section") {
+      const sections = corridorSectionRegistry.getSectionsForBuildingAndFloor(bId, floorId);
+      if (sections.length === 0) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "No corridor sections registered on this floor";
+        hazLocation.appendChild(opt);
+      } else {
+        sections.forEach((sec) => {
+          const opt = document.createElement("option");
+          opt.value = sec.id;
+          opt.textContent = `🚶 ${sec.displayName}`;
+          hazLocation.appendChild(opt);
+        });
+      }
+      this.updatePreviewHighlight();
+      return;
+    }
+
     const allSpaces = this.mapData.getByType("space").filter((s) => {
       const sFloorId = typeof s.floor === "string" ? s.floor : s.floor?.id;
       if (floorId !== "all" && sFloorId !== floorId) return false;
@@ -705,14 +881,14 @@ export class EmergencyPanel {
     const active = hazardStore.getActiveHazards();
     const set = new Set<string>();
     for (const h of active) {
-      if (
-        h.locationId &&
-        (h.locationType === "room" ||
-          h.locationType === "corridor" ||
-          h.locationType === "area")
-      ) {
+      if (h.locationId) {
         set.add(h.locationId);
-      } else if (h.locationType === "floor") {
+      }
+      if (h.locationType === "corridor-section" && h.sectionId) {
+        const sec = corridorSectionRegistry.getById(h.sectionId);
+        if (sec?.spaceId) set.add(sec.spaceId);
+      }
+      if (h.locationType === "floor") {
         const targetFl = h.locationId || h.floorId;
         const flSpaces = this.mapData
           .getByType("space")
@@ -760,6 +936,40 @@ export class EmergencyPanel {
     const floorId = hazFloor.value;
     const locType = hazType.value as LocationRestrictionType;
     const locId = hazLocation.value;
+    const isSectionScope = (this.panelEl.querySelector("#hazScopeSection") as HTMLInputElement)?.checked;
+    if (isSectionScope || locType === "corridor-section") {
+      const sec = corridorSectionRegistry.getById(locId);
+      if (sec) {
+        if (sec.spaceId && sec.spaceId !== "s_c1f772690d848720") {
+          const sp = this.mapData.getById("space", sec.spaceId);
+          if (sp) {
+            try {
+              this.mapView.updateState(sp, { color: "#ff1744" });
+              this.previewSpaceIds.add(sp.id);
+              this.coloredHazardSpaces.add(sp);
+            } catch {}
+          }
+        }
+        const markerNode = document.createElement("div");
+        markerNode.innerHTML = `
+          <div style="background:#ff1744; color:#fff; padding:4px 8px; border-radius:12px; font-size:11px; font-weight:700; border:2px dashed #fff; box-shadow:0 0 12px rgba(255,23,68,0.85); animation:pulse 1.2s infinite; cursor:pointer;" title="Preview: ${sec.displayName}">
+            🚶 PREVIEW SECTION: ${sec.displayName}
+          </div>
+        `;
+        try {
+          this.previewMarker = this.mapView.Markers.add(
+            {
+              latitude: sec.coordinates.latitude,
+              longitude: sec.coordinates.longitude,
+              floorId: sec.floorId,
+            } as any,
+            markerNode.innerHTML,
+            { anchor: "center" }
+          );
+        } catch {}
+      }
+      return;
+    }
 
     if (locType === "floor") {
       const targetFloor = floorId === "all" ? this.mapView.currentFloor?.id : floorId;
@@ -857,6 +1067,214 @@ export class EmergencyPanel {
     }
   }
 
+
+  startDrawingMode() {
+    this.isDrawingMode = true;
+    this.clearPreviewHighlight();
+    const dropdownContainer = this.panelEl.querySelector("#dropdownControlsContainer") as HTMLElement;
+    const drawContainer = this.panelEl.querySelector("#drawControlsContainer") as HTMLElement;
+    const scopeDraw = this.panelEl.querySelector("#hazScopeDraw") as HTMLInputElement;
+    if (scopeDraw) scopeDraw.checked = true;
+    if (dropdownContainer) dropdownContainer.style.display = "none";
+    if (drawContainer) drawContainer.style.display = "block";
+
+    const b = CONFIGURED_BUILDINGS.find(
+      (x) => hazardStore.normalizeBuildingId(x.id) === hazardStore.normalizeBuildingId(this.currentBuildingId)
+    );
+    const drawTargetInfo = this.panelEl.querySelector("#drawTargetInfo") as HTMLElement;
+    if (drawTargetInfo) {
+      drawTargetInfo.innerHTML = `🏢 Target Building: <b>${b?.name || "Campus"}</b> (${this.mapView.currentFloor?.name || "Level 1"})`;
+    }
+
+    const btnActivate = this.panelEl.querySelector("#btnActivateHazard") as HTMLButtonElement;
+    if (btnActivate) {
+      btnActivate.innerHTML = `<span>🚨</span> Confirm & Activate Hazard`;
+      btnActivate.disabled = true;
+      btnActivate.style.opacity = "0.6";
+    }
+
+    this.redrawDrawing();
+    this.showToast("Draw mode active: Click map to mark boundary points.");
+  }
+
+  private onMapClickForDrawing(event: any) {
+    if (!this.isDrawingMode) return;
+    const coord = event?.coordinate;
+    if (!coord || coord.latitude == null || coord.longitude == null) return;
+
+    this.drawingPoints.push({ latitude: coord.latitude, longitude: coord.longitude });
+
+    const countEl = this.panelEl.querySelector("#drawPointsCount");
+    if (countEl) countEl.textContent = this.drawingPoints.length.toString();
+
+    // Add marker for this point
+    const targetCoord =
+      coord.floorId || coord.floor
+        ? coord
+        : this.mapView.createCoordinate(coord.latitude, coord.longitude, this.mapView.currentFloor);
+    try {
+      const ptMarker = this.mapView.Markers.add(
+        targetCoord,
+        `<div style="background:#dc2626; color:#fff; border:2px solid #fff; border-radius:50%; width:22px; height:22px; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,0.4);">
+          ${this.drawingPoints.length}
+        </div>`,
+        { rank: 12 }
+      );
+      if (ptMarker) this.drawingMarkers.push(ptMarker);
+    } catch {}
+
+    const btnFinish = this.panelEl.querySelector("#btnFinishDrawing") as HTMLButtonElement;
+
+    if (this.drawingModeType === "corridor") {
+      if (this.drawingPoints.length === 2) {
+        if (btnFinish) btnFinish.disabled = false;
+        this.finishDrawing();
+      }
+    } else {
+      if (this.drawingPoints.length >= 2) {
+        if (this.drawingPreviewPath) {
+          try { this.mapView.Paths.remove(this.drawingPreviewPath); } catch {}
+        }
+        const coords = this.drawingPoints.map((p) =>
+          this.mapView.createCoordinate(p.latitude, p.longitude, this.mapView.currentFloor)
+        );
+        this.drawingPreviewPath = this.mapView.Paths.add(coords, { color: "#ef4444", nearRadius: 0.35 });
+      }
+      if (this.drawingPoints.length >= 3 && btnFinish) {
+        btnFinish.disabled = false;
+      }
+    }
+  }
+
+  finishDrawing() {
+    if (this.drawingPoints.length === 0) return;
+
+    if (this.drawingModeType === "corridor") {
+      if (this.drawingPoints.length < 2) {
+        alert("Please click 2 points along the corridor to define the segment.");
+        return;
+      }
+      const width = parseFloat((this.panelEl.querySelector("#drawCorridorWidth") as HTMLInputElement)?.value || "4.5");
+      this.drawingFinalPolygon = createCorridorPolygonFromPoints(this.drawingPoints[0], this.drawingPoints[1], width);
+    } else {
+      if (this.drawingPoints.length < 3) {
+        alert("A custom polygon requires at least 3 boundary points.");
+        return;
+      }
+      this.drawingFinalPolygon = createPolygonFromPoints(this.drawingPoints);
+    }
+
+    this.renderDrawingPreviewPolygon(this.drawingFinalPolygon);
+
+    const btnActivate = this.panelEl.querySelector("#btnActivateHazard") as HTMLButtonElement;
+    if (btnActivate) {
+      btnActivate.innerHTML = `<span>🚨</span> Confirm & Activate Hazard`;
+      btnActivate.disabled = false;
+      btnActivate.style.opacity = "1";
+    }
+    this.showToast("Shape completed! Review red preview on map and click Confirm & Activate.");
+  }
+
+  private renderDrawingPreviewPolygon(polygon: any) {
+    if (this.drawingPreviewPath) {
+      try { this.mapView.Paths.remove(this.drawingPreviewPath); } catch {}
+      this.drawingPreviewPath = null;
+    }
+    if (this.drawingPreviewCentroidMarker) {
+      try { this.mapView.Markers.remove(this.drawingPreviewCentroidMarker); } catch {}
+      this.drawingPreviewCentroidMarker = null;
+    }
+
+    const ring = polygon.geometry.coordinates[0];
+    const coords = ring.map((pt: number[]) =>
+      this.mapView.createCoordinate(pt[1], pt[0], this.mapView.currentFloor)
+    );
+    this.drawingPreviewPath = this.mapView.Paths.add(coords, { color: "#dc2626", nearRadius: 0.4 });
+
+    const centroid = this.calculateCentroid(this.drawingPoints);
+    const centroidCoord = this.mapView.createCoordinate(centroid.latitude, centroid.longitude, this.mapView.currentFloor);
+    this.drawingPreviewCentroidMarker = this.mapView.Markers.add(
+      centroidCoord,
+      `<div style="background:#fee2e2; border:2px dashed #b91c1c; border-radius:8px; padding:4px 8px; font-size:11px; font-weight:800; color:#991b1b; box-shadow:0 2px 8px rgba(185,28,28,0.3); animation:pulse 1.5s infinite; white-space:nowrap;">
+        🚨 PREVIEW RESTRICTION (${this.drawingPoints.length} pts) — Unconfirmed
+      </div>`,
+      { rank: 15 }
+    );
+  }
+
+  redrawDrawing() {
+    this.drawingPoints = [];
+    this.drawingFinalPolygon = null;
+    this.drawingMarkers.forEach((m) => {
+      try { this.mapView.Markers.remove(m); } catch {}
+    });
+    this.drawingMarkers = [];
+    if (this.drawingPreviewPath) {
+      try { this.mapView.Paths.remove(this.drawingPreviewPath); } catch {}
+      this.drawingPreviewPath = null;
+    }
+    if (this.drawingPreviewCentroidMarker) {
+      try { this.mapView.Markers.remove(this.drawingPreviewCentroidMarker); } catch {}
+      this.drawingPreviewCentroidMarker = null;
+    }
+    const countEl = this.panelEl.querySelector("#drawPointsCount");
+    if (countEl) countEl.textContent = "0";
+
+    const btnFinish = this.panelEl.querySelector("#btnFinishDrawing") as HTMLButtonElement;
+    if (btnFinish) btnFinish.disabled = true;
+
+    const btnActivate = this.panelEl.querySelector("#btnActivateHazard") as HTMLButtonElement;
+    if (btnActivate) {
+      btnActivate.disabled = true;
+      btnActivate.style.opacity = "0.6";
+    }
+  }
+
+  cancelDrawingMode(revertRadio: boolean = true) {
+    this.isDrawingMode = false;
+    this.redrawDrawing();
+    const dropdownContainer = this.panelEl.querySelector("#dropdownControlsContainer") as HTMLElement;
+    const drawContainer = this.panelEl.querySelector("#drawControlsContainer") as HTMLElement;
+    if (dropdownContainer) dropdownContainer.style.display = "block";
+    if (drawContainer) drawContainer.style.display = "none";
+
+    if (revertRadio) {
+      const scopeWhole = this.panelEl.querySelector("#hazScopeWhole") as HTMLInputElement;
+      if (scopeWhole) {
+        scopeWhole.checked = true;
+        const typeContainer = (this.panelEl.querySelector("#hazTypeSelect") as HTMLElement)?.parentElement;
+        if (typeContainer) typeContainer.style.display = "block";
+        this.populateCustomHazardLocations();
+        this.updatePreviewHighlight();
+      }
+    }
+
+    const btnActivate = this.panelEl.querySelector("#btnActivateHazard") as HTMLButtonElement;
+    if (btnActivate) {
+      btnActivate.innerHTML = `<span>🚫</span> Block Location / Activate Hazard`;
+      btnActivate.disabled = false;
+      btnActivate.style.opacity = "1";
+    }
+  }
+
+  private calculateCentroid(points: { latitude: number; longitude: number }[]): { latitude: number; longitude: number } {
+    if (!points || points.length === 0) return { latitude: 0, longitude: 0 };
+    let sumLat = 0;
+    let sumLon = 0;
+    for (const p of points) {
+      sumLat += p.latitude;
+      sumLon += p.longitude;
+    }
+    return {
+      latitude: sumLat / points.length,
+      longitude: sumLon / points.length,
+    };
+  }
+
+  isDrawingActive(): boolean {
+    return this.isDrawingMode;
+  }
+
   private handleActivateCustomHazard() {
     const hazBuilding = this.panelEl.querySelector("#hazBuildingSelect") as HTMLSelectElement;
     const hazFloor = this.panelEl.querySelector("#hazFloorSelect") as HTMLSelectElement;
@@ -864,6 +1282,77 @@ export class EmergencyPanel {
     const hazLocation = this.panelEl.querySelector("#hazLocationSelect") as HTMLSelectElement;
     const hazReasonInput = this.panelEl.querySelector("#hazReasonInput") as HTMLInputElement;
     const hazSeveritySelect = this.panelEl.querySelector("#hazSeveritySelect") as HTMLSelectElement;
+
+    if (this.isDrawingMode) {
+      if (!this.drawingFinalPolygon) {
+        if (this.drawingModeType === "corridor" && this.drawingPoints.length === 2) {
+          this.finishDrawing();
+        } else if (this.drawingModeType === "polygon" && this.drawingPoints.length >= 3) {
+          this.finishDrawing();
+        } else {
+          alert("Please complete drawing your restriction on the map before activating!");
+          return;
+        }
+      }
+
+      if (!this.drawingFinalPolygon) {
+        alert("Please complete drawing your restriction on the map before activating!");
+        return;
+      }
+
+      const reason = hazReasonInput?.value?.trim() || "Emergency Hazard";
+      const severity = ((hazSeveritySelect?.value as any) || "blocked") as "blocked" | "caution";
+      const buildingId = this.currentBuildingId;
+      const floorId = this.mapView.currentFloor?.id || "";
+      const building =
+        CONFIGURED_BUILDINGS.find(
+          (b) => hazardStore.normalizeBuildingId(b.id) === hazardStore.normalizeBuildingId(buildingId)
+        ) || CONFIGURED_BUILDINGS[0];
+
+      const centroid = this.calculateCentroid(this.drawingPoints);
+      const locType: LocationRestrictionType =
+        this.drawingModeType === "corridor" ? "drawn-corridor" : "drawn-polygon";
+      const label =
+        this.drawingModeType === "corridor"
+          ? `Drawn Corridor (${this.drawingPoints.length} pts)`
+          : `Drawn Polygon (${this.drawingPoints.length} pts)`;
+      const hazardId = `haz-draw-${Date.now()}`;
+      const hazardName = `${label} — ${reason}`;
+
+      hazardStore.addCustomHazard({
+        id: hazardId,
+        name: hazardName,
+        buildingId: building.id,
+        buildingName: building.name,
+        floorId: floorId,
+        floorName: this.mapView.currentFloor?.name || building.floorName,
+        locationType: locType,
+        locationId: hazardId,
+        locationName: label,
+        reason,
+        severity,
+        coordinates: centroid,
+        radiusMeters: this.drawingModeType === "corridor" ? 5 : 8,
+        polygon: this.drawingFinalPolygon,
+        drawnPoints: [...this.drawingPoints],
+        status: "Confirmed",
+      });
+
+      incidentService.createIncident({
+        reportedLocation: `${label} (${building.name})`,
+        locationSpaceId: hazardId,
+        incidentType: reason.toLowerCase().includes("fire") ? "fire" : "hazard",
+        severity: "critical",
+        notes: `Custom restriction: ${reason} (Map Drawing)`,
+      });
+
+      this.redrawDrawing();
+      this.cancelDrawingMode(true);
+      this.renderMapMarkers();
+      this.updateActiveHazardsList();
+      this.showToast(`🚫 Restriction Activated: ${label} is now BLOCKED (${reason})!`);
+      return;
+    }
 
     if (!hazLocation.value) {
       alert("Please select a valid location to restrict!");
@@ -878,6 +1367,52 @@ export class EmergencyPanel {
     const severity = (hazSeveritySelect.value as any) || "blocked";
 
     const building = CONFIGURED_BUILDINGS.find((b) => hazardStore.normalizeBuildingId(b.id) === hazardStore.normalizeBuildingId(buildingId)) || CONFIGURED_BUILDINGS[0];
+
+    const isSectionScope = (this.panelEl.querySelector("#hazScopeSection") as HTMLInputElement)?.checked;
+    if (isSectionScope || locationType === "corridor-section") {
+      const sec = corridorSectionRegistry.getById(locationId);
+      if (!sec) {
+        alert("Please select a valid corridor section!");
+        return;
+      }
+
+      this.clearPreviewHighlight();
+
+      const hazardName = `${sec.displayName} — ${reason}`;
+      const polygon = sec.polygon || createCirclePolygon(sec.coordinates.latitude, sec.coordinates.longitude, sec.radiusMeters);
+
+      hazardStore.addCustomHazard({
+        id: `haz-sec-${sec.id}-${Date.now()}`,
+        name: hazardName,
+        buildingId: sec.buildingId,
+        buildingName: building.name,
+        floorId: sec.floorId,
+        floorName: building.floorName,
+        locationType: "corridor-section",
+        locationId: sec.id,
+        sectionId: sec.id,
+        locationName: sec.displayName,
+        reason,
+        severity,
+        coordinates: sec.coordinates,
+        radiusMeters: sec.radiusMeters,
+        polygon,
+        status: "Confirmed",
+      });
+
+      incidentService.createIncident({
+        reportedLocation: `${sec.displayName} (${building.name})`,
+        locationSpaceId: sec.spaceId || sec.id,
+        incidentType: reason.toLowerCase().includes("fire") ? "fire" : "hazard",
+        severity: "critical",
+        notes: `Custom restriction: ${reason} (Corridor Section)`,
+      });
+
+      this.renderMapMarkers();
+      this.updateActiveHazardsList();
+      this.showToast(`🚫 Restriction Activated: ${sec.displayName} is now BLOCKED (${reason})!`);
+      return;
+    }
 
     let coordinates = { latitude: 0, longitude: 0 };
     let locationName = hazLocation.options[hazLocation.selectedIndex]?.text || locationId;
@@ -1115,15 +1650,22 @@ export class EmergencyPanel {
     }
 
     this.hideWarning();
-    const result: NearestExitResult = safeRouteService.findNearestSafeExit(startSpace as any, this.mapData);
+    const currentBuildingId = this.getCurrentBuildingId();
+    const result: NearestExitResult = safeRouteService.findNearestSafeExit(
+      startSpace as any,
+      this.mapData,
+      currentBuildingId
+    );
 
-    const resultBox = document.getElementById("nearestExitResult")!;
+    const resultBox = document.getElementById("nearestExitResult");
 
     if (result.error === "NO_SAFE_ROUTE" || !result.chosenExit || !result.directions) {
-      resultBox.style.display = "none";
+      if (resultBox) resultBox.style.display = "none";
       this.callbacks.onClearNavigation();
+      const warningMsg = "NO SAFE ROUTE AVAILABLE — YOUR DESTINATION CANNOT BE REACHED WITHOUT CROSSING A BLOCKED AREA.";
+      alert(warningMsg);
       this.showWarning(
-        `🚨 NO SAFE ROUTE AVAILABLE — YOUR DESTINATION CANNOT BE REACHED WITHOUT CROSSING A BLOCKED AREA.<br/><br/>` +
+        `🚨 ${warningMsg}<br/><br/>` +
         `All eligible emergency exits from <b>${result.startLocationName}</b> are currently unreachable or blocked by active hazards.<br/><br/>` +
         `⚠️ <b>System refuses unsafe passage.</b> Do not traverse active hazard zones. Shelter in place and await emergency responder assistance.`
       );
@@ -1134,29 +1676,35 @@ export class EmergencyPanel {
     }
 
     // Success: Safe route found
-    resultBox.style.display = "block";
-    resultBox.innerHTML = `
-      <div style="font-weight:700; color:#2e7d32; font-size:14px; margin-bottom:4px; display:flex; align-items:center; gap:6px;">
-        <span>✅</span> <span>Safe Evacuation Route Found</span>
-      </div>
-      <div><b>Target Exit:</b> ${result.chosenExit.name}</div>
-      <div><b>Building:</b> ${result.chosenExit.buildingName} (${result.chosenExit.floorName})</div>
-      <div><b>Distance:</b> ${result.distanceMeters} meters (~${result.estimatedTimeSeconds} sec walk)</div>
-      <div style="font-size:11px; color:#15803d; font-weight:600; margin-top:4px;">
-        🛡️ Follow the safe green route on map avoiding all reported hazards.
-      </div>
-    `;
+    if (resultBox) {
+      resultBox.style.display = "block";
+      resultBox.innerHTML = `
+        <div style="font-weight:700; color:#2e7d32; font-size:14px; margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+          <span>✅</span> <span>Safe Evacuation Route Found</span>
+        </div>
+        <div><b>Target Exit:</b> ${result.chosenExit.name}</div>
+        <div><b>Building:</b> ${result.chosenExit.buildingName} (${result.chosenExit.floorName})</div>
+        <div><b>Distance:</b> ${result.distanceMeters} meters (~${result.estimatedTimeSeconds} sec walk)</div>
+        <div style="font-size:11px; color:#15803d; font-weight:600; margin-top:4px;">
+          🛡️ Follow the safe green route on map avoiding all reported hazards.
+        </div>
+      `;
+    }
 
     // Populate alternative exits
     this.renderAlternativeExits(result.alternativeExits);
 
-    // Apply route to the map
-    const destDoor = this.mapData.getById("door", result.chosenExit.doorId);
-    const destSpace = result.chosenExit.spaceId ? this.mapData.getById("space", result.chosenExit.spaceId) : undefined;
-    const destTarget = destDoor || destSpace;
-    if (destTarget) {
-      this.callbacks.setDestinationSpace(result.chosenExit.doorId);
-      this.callbacks.onRouteGenerated(result.directions, destTarget as any);
+    // Apply route to the map using intended route-generation workflow
+    this.callbacks.setDestinationSpace(result.chosenExit.doorId);
+    if (this.callbacks.generateRoute) {
+      this.callbacks.generateRoute({ destinationId: result.chosenExit.doorId, isEmergency: true });
+    } else {
+      const destDoor = this.mapData.getById("door", result.chosenExit.doorId);
+      const destSpace = result.chosenExit.spaceId ? this.mapData.getById("space", result.chosenExit.spaceId) : undefined;
+      const destTarget = destDoor || destSpace;
+      if (destTarget) {
+        this.callbacks.onRouteGenerated(result.directions, destTarget as any);
+      }
     }
   }
 
@@ -1280,7 +1828,8 @@ export class EmergencyPanel {
               ${h.reason.toString().toLowerCase().includes("fire") ? "🔥" : h.reason.toString().toLowerCase().includes("smoke") ? "💨" : "⛔"} ${h.name}
             </div>
             <div style="font-size:11px; color:#666;">
-              ${h.buildingName} · ${h.floorName} · <span style="font-weight:600; color:#c2410c;">${h.locationType.toUpperCase()}</span> · ${h.reportedAt}
+              ${h.buildingName} · ${h.floorName} · <span style="font-weight:700; color:#c2410c;">${h.locationType === "corridor-section" ? "CORRIDOR SECTION" : h.locationType === "drawn-polygon" ? "DRAWN POLYGON" : h.locationType.toUpperCase()}</span> · ${h.reportedAt}
+            ${h.sectionId ? `<div style="font-size:10px; color:#475569; font-weight:600;">Section ID: ${h.sectionId}</div>` : ""}
             </div>
             <div style="font-size:11px; color:#b91c1c; font-weight:600; margin-top:2px;">
               Status: ACTIVE · BLOCKED
@@ -1323,7 +1872,7 @@ export class EmergencyPanel {
       }
     });
 
-    // 2. Clear previously added markers
+    // 2. Clear previously added markers and hazard paths
     this.activeMarkers.forEach((m) => {
       try {
         this.mapView.Markers.remove(m);
@@ -1333,15 +1882,110 @@ export class EmergencyPanel {
     });
     this.activeMarkers = [];
 
+    this.activeHazardPaths.forEach((p) => {
+      try {
+        this.mapView.Paths.remove(p);
+      } catch {
+        // ignore
+      }
+    });
+    this.activeHazardPaths = [];
+
+    this.activeHazardShapes.forEach((s) => {
+      try {
+        if (this.mapView?.Shapes) {
+          this.mapView.Shapes.remove(s);
+        }
+      } catch {
+        // ignore
+      }
+    });
+    this.activeHazardShapes = [];
+
     // 3. Highlight currently blocked spaces in red and add hazard markers
-    const normB = hazardStore.normalizeBuildingId(this.currentBuildingId);
+    const currentMapFloorId = this.mapView.currentFloor?.id;
+    let activeBuildingId = this.getCurrentBuildingId();
+    if (currentMapFloorId) {
+      for (const b of CONFIGURED_BUILDINGS) {
+        if (b.floors.some((f) => f.id === currentMapFloorId) || (b as any).floors?.includes?.(currentMapFloorId)) {
+          activeBuildingId = b.id;
+          break;
+        }
+      }
+    }
+    const normB = hazardStore.normalizeBuildingId(activeBuildingId);
     const buildingHazards = active.filter(
-      (h) => hazardStore.normalizeBuildingId(h.buildingId) === normB
+      (h) =>
+        hazardStore.normalizeBuildingId(h.buildingId) === normB ||
+        (currentMapFloorId && h.floorId === currentMapFloorId) ||
+        h.floorId === "all"
     );
 
     buildingHazards.forEach((h) => {
+      // Render visible 3D red zone on the map using Shapes and Paths
+      if (h.polygon) {
+        const targetFl = h.floorId === "all" ? this.mapView.currentFloor?.id : h.floorId;
+        const floor = this.mapData.getById("floor", targetFl);
+        if (floor) {
+          const featureCollection = {
+            type: "FeatureCollection",
+            features: [
+              h.polygon.type === "FeatureCollection"
+                ? h.polygon.features[0]
+                : h.polygon.type === "Feature"
+                ? h.polygon
+                : { type: "Feature", properties: {}, geometry: h.polygon }
+            ]
+          };
+
+          // 1. 3D Shape overlay with visible fill and opacity
+          if (this.mapView?.Shapes) {
+            try {
+              const shape = this.mapView.Shapes.add(
+                featureCollection,
+                { color: "#dc2626", opacity: 0.55, outline: true },
+                floor
+              );
+              if (shape) {
+                this.activeHazardShapes.push(shape);
+              }
+            } catch (err) {
+              console.warn("Could not add 3D shape overlay:", err);
+            }
+          }
+
+          // 2. High-contrast perimeter outline using Paths.add
+          const geom = featureCollection.features[0]?.geometry;
+          const ring = geom?.coordinates?.[0];
+          if (ring && ring.length >= 3) {
+            try {
+              const coords = ring.map((pt: number[]) =>
+                this.mapView.createCoordinate(pt[1], pt[0], floor)
+              );
+              const path = this.mapView.Paths.add(coords, { color: "#b91c1c", nearRadius: 0.4 });
+              if (path) {
+                this.activeHazardPaths.push(path);
+              }
+            } catch {}
+          }
+        }
+      }
+
       // If room, corridor, or area, color the space red!
-      if (h.locationId && (h.locationType === "room" || h.locationType === "corridor" || h.locationType === "area")) {
+      if (h.locationType === "corridor-section") {
+        if (h.sectionId) {
+          const sec = corridorSectionRegistry.getById(h.sectionId);
+          if (sec?.spaceId && sec.spaceId !== "s_c1f772690d848720") {
+            const sp = this.mapData.getById("space", sec.spaceId);
+            if (sp) {
+              try {
+                this.mapView.updateState(sp, { color: "#d93025" });
+                this.coloredHazardSpaces.add(sp);
+              } catch {}
+            }
+          }
+        }
+      } else if (h.locationId && (h.locationType === "room" || h.locationType === "corridor" || h.locationType === "area")) {
         const sp = this.mapData.getById("space", h.locationId);
         if (sp) {
           try {
@@ -1627,12 +2271,25 @@ export class EmergencyPanel {
 
     modal.querySelector("#btnTriggerModalSos")!.addEventListener("click", () => {
       const startSpace = this.callbacks.getCurrentStartSpace();
-      const building =
-        CONFIGURED_BUILDINGS.find(
-          (b) =>
-            hazardStore.normalizeBuildingId(b.id) ===
-            hazardStore.normalizeBuildingId(this.currentBuildingId)
-        ) || CONFIGURED_BUILDINGS[0];
+      const sFl = startSpace
+        ? (typeof (startSpace as any).floor === "string"
+            ? (startSpace as any).floor
+            : (startSpace as any).floor?.id)
+        : (this.mapView?.currentFloor?.id || null);
+      let building = CONFIGURED_BUILDINGS.find(
+        (b) =>
+          b.floors.some((f) => f.id === sFl) ||
+          (b as any).floors?.includes?.(sFl)
+      );
+      if (!building) {
+        building =
+          CONFIGURED_BUILDINGS.find(
+            (b) =>
+              hazardStore.normalizeBuildingId(b.id) ===
+              hazardStore.normalizeBuildingId(this.getCurrentBuildingId())
+          ) || CONFIGURED_BUILDINGS[0];
+      }
+      this.currentBuildingId = building.id;
       const spaceId = startSpace
         ? (startSpace as any).id
         : building.defaultStartSpaceId;
@@ -1664,12 +2321,25 @@ export class EmergencyPanel {
   private updateSosHubContent() {
     if (!this.incidentModalEl || !this.mapData) return;
     const startSpace = this.callbacks.getCurrentStartSpace();
-    const building =
-      CONFIGURED_BUILDINGS.find(
-        (b) =>
-          hazardStore.normalizeBuildingId(b.id) ===
-          hazardStore.normalizeBuildingId(this.currentBuildingId)
-      ) || CONFIGURED_BUILDINGS[0];
+    const sFl = startSpace
+      ? (typeof (startSpace as any).floor === "string"
+          ? (startSpace as any).floor
+          : (startSpace as any).floor?.id)
+      : (this.mapView?.currentFloor?.id || null);
+    let building = CONFIGURED_BUILDINGS.find(
+      (b) =>
+        b.floors.some((f) => f.id === sFl) ||
+        (b as any).floors?.includes?.(sFl)
+      );
+    if (!building) {
+      building =
+        CONFIGURED_BUILDINGS.find(
+          (b) =>
+            hazardStore.normalizeBuildingId(b.id) ===
+            hazardStore.normalizeBuildingId(this.getCurrentBuildingId())
+        ) || CONFIGURED_BUILDINGS[0];
+    }
+    this.currentBuildingId = building.id;
     const spaceId = startSpace
       ? (startSpace as any).id
       : building.defaultStartSpaceId;
@@ -1677,6 +2347,9 @@ export class EmergencyPanel {
       (this.mapData.getById("door", spaceId) as any) ||
       this.mapData.getById("space", spaceId);
     const spaceName = spaceObj?.name || spaceId || "Not selected";
+    const victimFloorId = sFl || this.mapView.currentFloor?.id || building.floorId;
+    const victimFloorObj = this.mapData.getById("floor", victimFloorId);
+    const victimFloorName = victimFloorObj?.name || building.floors.find((f: any) => f.id === victimFloorId)?.name || building.floorName || "Level 1";
 
     const buildingEl = this.incidentModalEl.querySelector("#sosUserBuilding");
     if (buildingEl) buildingEl.textContent = `Building: ${building.name}`;
@@ -1699,10 +2372,27 @@ export class EmergencyPanel {
 
     const urlInput = this.incidentModalEl.querySelector("#sosRescueUrlInput") as HTMLInputElement;
     if (urlInput) {
+      const activeHazards = hazardStore.getActiveHazards();
+      const snapshot = incidentService.createEmergencySnapshot({
+        victimSpaceId: spaceId,
+        victimLocationName: spaceName,
+        buildingId: building.id,
+        buildingName: building.name,
+        floorId: victimFloorId,
+        floorName: victimFloorName,
+        victimCoordinates: (spaceObj as any)?.center,
+        hazards: activeHazards,
+      });
+      const encoded = incidentService.encodeSnapshot(snapshot);
       const url = new URL(window.location.href);
       url.search = "";
+      url.searchParams.set("victim", spaceId);
       url.searchParams.set("meet", spaceId);
       url.searchParams.set("sos", "true");
+      url.searchParams.set("inc", snapshot.incidentId);
+      if (encoded) {
+        url.searchParams.set("sosData", encoded);
+      }
       urlInput.value = url.toString();
     }
 

@@ -2,7 +2,9 @@ import { Space, Floor, Door } from "@mappedin/mappedin-js";
 
 export type LocationType = "entrance" | "exit" | "both";
 
-export type VerificationStatus = "verified" | "unverified";
+export type VerificationStatus = "verified" | "unverified" | "internal";
+
+export type DoorClassification = "exterior" | "internal";
 
 export interface BuildingEntranceExit {
   id: string;
@@ -14,6 +16,8 @@ export interface BuildingEntranceExit {
   doorId: string;
   spaceId?: string;
   locationType: LocationType;
+  doorType?: DoorClassification;
+  isExterior?: boolean;
   isEmergencyExit: boolean;
   isEntrance: boolean;
   verificationStatus: VerificationStatus;
@@ -41,8 +45,28 @@ export type LocationRestrictionType =
   | "exit"
   | "entrance"
   | "corridor"
+  | "corridor-section"
   | "floor"
-  | "area";
+  | "area"
+  | "drawn-polygon"
+  | "drawn-corridor";
+
+export interface CorridorSection {
+  id: string;
+  corridorName: string;
+  sectionName: string;
+  displayName: string;
+  buildingId: string;
+  floorId: string;
+  spaceId?: string;
+  coordinates: {
+    latitude: number;
+    longitude: number;
+  };
+  radiusMeters: number;
+  polygon?: any;
+  notes?: string;
+}
 
 export interface Hazard {
   id: string;
@@ -53,6 +77,7 @@ export interface Hazard {
   floorName?: string;
   locationType: LocationRestrictionType;
   locationId?: string; // space ID, door ID, or floor ID
+  sectionId?: string; // Stable corridor section ID
   locationName: string;
   reason: HazardReason | string;
   severity: HazardSeverity;
@@ -64,6 +89,7 @@ export interface Hazard {
   reportedAt: string;
   status: HazardStatus;
   polygon?: any; // GeoJSON Polygon Feature
+  drawnPoints?: { latitude: number; longitude: number }[];
 }
 
 export type IncidentType = "fire" | "medical" | "hazard" | "evacuation" | "sos";
@@ -75,21 +101,77 @@ export interface Incident {
   reportedLocation: string;
   locationSpaceId?: string;
   incidentType: IncidentType;
-  timeReported: string;
   hazardId?: string;
+  timeReported: string;
   status: IncidentStatus;
+  severity: "low" | "medium" | "high" | "critical";
   notes?: string;
-  severity?: "low" | "medium" | "high" | "critical";
+}
+
+export interface EmergencyIncidentSnapshot {
+  version: 1;
+  incidentId: string;
+  timestamp: number;
+  timeReported: string;
+  victim: {
+    spaceId: string;
+    locationName: string;
+    buildingId: string;
+    buildingName?: string;
+    floorId: string;
+    floorName?: string;
+    coordinates?: {
+      latitude: number;
+      longitude: number;
+    };
+  };
+  hazards: Array<{
+    id: string;
+    name: string;
+    reason: HazardReason | string;
+    severity: HazardSeverity;
+    locationType: LocationRestrictionType;
+    locationName: string;
+    locationId?: string;
+    sectionId?: string;
+    buildingId: string;
+    buildingName?: string;
+    floorId: string;
+    floorName?: string;
+    coordinates: {
+      latitude: number;
+      longitude: number;
+    };
+    radiusMeters: number;
+    status: HazardStatus;
+    polygon?: any;
+    isCleared?: boolean;
+    drawnPoints?: { latitude: number; longitude: number }[];
+  }>;
+}
+
+export interface IncidentReport {
+  id: string;
+  timestamp: string;
+  type: IncidentType;
+  locationName: string;
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+  };
+  status: IncidentStatus;
+  description: string;
+  reportedBy?: string;
 }
 
 export interface NearestExitResult {
   startLocationName: string;
   startSpaceId: string;
   chosenExit: BuildingEntranceExit | null;
-  directions?: any; // Directions
+  directions?: any;
   distanceMeters?: number;
   estimatedTimeSeconds?: number;
-  error?: "NO_SAFE_ROUTE" | "NO_START_LOCATION" | "NO_ELIGIBLE_EXITS" | "ROUTING_FAILED";
+  error?: "NO_SAFE_ROUTE" | "NO_ELIGIBLE_EXITS";
   errorMessage?: string;
   alternativeExits: {
     exit: BuildingEntranceExit;
@@ -97,6 +179,17 @@ export interface NearestExitResult {
     isSafe: boolean;
     routeBlockedReason?: string;
   }[];
+}
+
+export interface BuildingConfig {
+  id: string;
+  name: string;
+  mapId: string;
+  floorId: string;
+  floorName: string;
+  floors?: { id: string; name: string }[];
+  defaultStartSpaceId: string;
+  defaultStartSpaceName: string;
 }
 
 export interface DemoScenarioHazard {
@@ -111,6 +204,7 @@ export interface DemoScenarioHazard {
     longitude: number;
   };
   radiusMeters: number;
+  spaceId?: string;
 }
 
 export interface DemoScenario {
@@ -127,19 +221,4 @@ export interface DemoScenario {
   defaultStartSpaceId: string;
   defaultStartSpaceName: string;
   hazards: DemoScenarioHazard[];
-}
-
-export interface BuildingChoice {
-  id: string;
-  buildingId: string;
-  mapId: string;
-  name: string;
-  shortName: string;
-  floors: { id: string; name: string }[];
-  floorId: string;
-  floorName: string;
-  defaultStartSpaceId: string;
-  defaultStartSpaceName: string;
-  defaultEndTargetId?: string;
-  defaultEndTargetName?: string;
 }
