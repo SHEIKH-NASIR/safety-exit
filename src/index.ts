@@ -214,20 +214,34 @@ async function resolveMapDataOptions(): Promise<TGetMapDataOptions> {
     candidateUrls.push("http://localhost:3000/api/mappedin-token");
   }
 
-  for (const url of candidateUrls) {
+  const queryParams = `mapId=${encodeURIComponent(mapId)}&environment=${encodeURIComponent(environment)}`;
+
+  for (const baseUrl of candidateUrls) {
     try {
+      const url = baseUrl.includes("?")
+        ? `${baseUrl}&${queryParams}`
+        : `${baseUrl}?${queryParams}`;
       const res = await fetch(url, { method: "GET" });
       if (res.ok) {
         const authData = await res.json();
         const token = authData.accessToken || authData.access_token;
         if (token) {
-          console.log("🔒 Map authenticated via secure Mappedin token service:", url);
+          console.log("🔒 Map authenticated via secure Mappedin token service:", baseUrl);
           hideAuthErrorToast();
           return {
             mapId: (mapIdInput && mapIdInput.value.trim() !== "") ? mapIdInput.value.trim() : (authData.mapId || mapId),
             accessToken: token,
             environment: (environmentSelect && environmentSelect.value !== "") ? (environmentSelect.value as "us" | "eu") : ((authData.environment as "us" | "eu") || environment),
           } as TGetMapDataOptions;
+        }
+      } else {
+        try {
+          const errData = await res.json();
+          if (errData && errData.message) {
+            console.warn(`[Auth Service Warning] ${baseUrl}:`, errData.message);
+          }
+        } catch {
+          // Response body was not JSON
         }
       }
     } catch {

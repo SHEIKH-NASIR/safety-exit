@@ -5,7 +5,7 @@
   "source": "index.html",
   "scripts": {
     "start": "parcel index.html",
-    "build": "parcel build index.html --cache-dir .parcel-cache-build --no-scope-hoist",
+    "build": "parcel build index.html --cache-dir .parcel-cache-build --no-scope-hoist --no-source-maps",
     "start:api": "node server/server.mjs"
   },
   "dependencies": {
