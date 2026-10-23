@@ -16,7 +16,6 @@
   },
   "devDependencies": {
     "@swc/core": "^1.15.33",
-    "@swc/core-win32-x64-msvc": "^1.15.33",
     "parcel": "^2.16.4",
     "typescript": "4.4.4"
   },
