@@ -28,7 +28,9 @@ import { saveTemplateAsFile } from "./fileDownloader";
 import { DynamicPositionUpdater, getCurrentPosition } from "./positionUpdater";
 import { emergencyPanel } from "./emergency/emergencyPanel";
 import { exitRegistry } from "./emergency/exitRegistry";
-import { hazardStore } from "./emergency/hazardStore";
+import { hazardStore, CONFIGURED_BUILDINGS } from "./emergency/hazardStore";
+import { BuildingEntranceExit } from "./emergency/types";
+let currentNavBuildingId: string = "fs_6878b1ed316caa000b260be2"; // Default: Office Building 1
 import { incidentService } from "./emergency/incidentService";
 const professors: Record<string, string> = {
   "Dr. Smith": "Office 101",
@@ -166,17 +168,22 @@ const getMapDataOptionsWithFallbacks = (): TGetMapDataOptions => {
 let previousColouredStart: Space | undefined;
 function onStartSpaceChange(event: any) {
   if (previousColouredStart) {
-    mapView.updateState(previousColouredStart, {
-      color: "initial",
-    });
+    if (hazardStore.isLocationBlocked(previousColouredStart.id, currentNavBuildingId)) {
+      mapView.updateState(previousColouredStart, { color: "#d93025" });
+    } else {
+      mapView.updateState(previousColouredStart, {
+        color: "initial",
+      });
+    }
   }
 
   const spaceToColor = mapData
     .getByType("space")
     .find((s) => s.id === event.target.value);
   if (spaceToColor) {
+    const isBlocked = hazardStore.isLocationBlocked(spaceToColor.id, currentNavBuildingId);
     mapView.updateState(spaceToColor, {
-      color: startLocationColor.value,
+      color: isBlocked ? "#d93025" : startLocationColor.value,
     });
     previousColouredStart = spaceToColor;
   }
@@ -186,17 +193,22 @@ startSpaceSelector.onchange = onStartSpaceChange;
 let previousColouredEnd: Space | undefined;
 function onEndSpaceChange(event: any) {
   if (previousColouredEnd) {
-    mapView.updateState(previousColouredEnd, {
-      color: "initial",
-    });
+    if (hazardStore.isLocationBlocked(previousColouredEnd.id, currentNavBuildingId)) {
+      mapView.updateState(previousColouredEnd, { color: "#d93025" });
+    } else {
+      mapView.updateState(previousColouredEnd, {
+        color: "initial",
+      });
+    }
   }
 
   const spaceToColor = mapData
     .getByType("space")
     .find((s) => s.id === event.target.value);
   if (spaceToColor) {
+    const isBlocked = hazardStore.isLocationBlocked(spaceToColor.id, currentNavBuildingId);
     mapView.updateState(spaceToColor, {
-      color: destinationLocationColor.value,
+      color: isBlocked ? "#d93025" : destinationLocationColor.value,
     });
     previousColouredEnd = spaceToColor;
   }
@@ -234,6 +246,14 @@ resetButton.onclick = () => {
   crossingToastShownFor.clear();
 
   hideInstructionBanner();
+  hideRouteSummary();
+
+  const directionsListEl = document.getElementById("directionsList");
+  if (directionsListEl) {
+    directionsListEl.innerHTML = "";
+    const detailsEl = directionsListEl.closest("details");
+    if (detailsEl) detailsEl.open = false;
+  }
 
   mapView.Markers.removeAll();
 
@@ -244,9 +264,14 @@ resetButton.onclick = () => {
 
   followingBlueDot = true;
 
-  // Restore verified entrance and exit markers
+  // Restore verified entrance and exit markers and expand sidebars
+  const sidebarEl = document.getElementById("sidebar");
+  if (sidebarEl) {
+    sidebarEl.classList.remove("collapsed");
+  }
   if (emergencyPanel) {
     emergencyPanel.renderMapMarkers();
+    emergencyPanel.expand();
   }
 
   console.log("✅ Map reset complete (all markers cleared)");
@@ -768,129 +793,192 @@ async function loadGlobalModels() {
 function setupCategoryDropdown(
   categorySelect: HTMLSelectElement,
   spaceSelect: HTMLSelectElement,
-  spaces: Space[]
+  mapDataRef: MapData,
+  isDestination: boolean = false
 ): any {
-  const verifiedEntrances = exitRegistry
-    .getVerifiedEntrances()
-    .map((e) => spaces.find((s) => s.id === e.spaceId))
-    .filter((s): s is Space => !!s);
-
-  const verifiedExits = exitRegistry
-    .getVerifiedEmergencyExits()
-    .map((e) => spaces.find((s) => s.id === e.spaceId))
-    .filter((s): s is Space => !!s);
-
-  const entranceExitSpaceIds = new Set(
-    exitRegistry.getAll().map((e) => e.spaceId)
-  );
-
-  const categories: Record<string, Space[]> = {
-    "Building Entrances": verifiedEntrances,
-    "Emergency Exits": verifiedExits,
-    Classrooms: spaces.filter((s) => s.name && s.name.startsWith("Classroom")),
-    Offices: spaces.filter((s) => s.name && s.name.startsWith("Office")),
-    Labs: spaces.filter((s) => s.name && s.name.toLowerCase().includes("lab")),
-    Canteens: spaces.filter((s) => s.name && s.name.toLowerCase().includes("canteen")),
-    Washrooms: spaces.filter(
-      (s) =>
-        s.name &&
-        (s.name.toLowerCase().includes("washroom") ||
-          s.name.toLowerCase().includes("toilet"))
-    ),
-    Professors: spaces.filter((s) =>
-      s.name && Object.values(professors).includes(s.name)
-    ),
-    Other: spaces.filter(
-      (s) =>
-        s.name &&
-        !entranceExitSpaceIds.has(s.id) &&
-        !s.name.startsWith("Classroom") &&
-        !s.name.startsWith("Office") &&
-        !s.name.toLowerCase().includes("lab") &&
-        !s.name.toLowerCase().includes("canteen") &&
-        !s.name.toLowerCase().includes("washroom") &&
-        !Object.values(professors).includes(s.name)
-    ),
-  };
-
-  categorySelect.innerHTML = "";
-  Object.keys(categories).forEach((cat) => {
-    if (categories[cat].length > 0) {
-      const option = document.createElement("option");
-      option.value = cat;
-      option.textContent = cat;
-      categorySelect.appendChild(option);
-    }
-  });
+  let activeBuildingId = currentNavBuildingId;
+  let activeFloorId: string | undefined = undefined;
 
   const ts = new TomSelect(spaceSelect, {
     create: false,
     searchField: "text",
-    placeholder: "Choose a space...",
+    placeholder: isDestination
+      ? "Choose destination (room / exit)..."
+      : "Choose starting location...",
     sortField: { field: "text", direction: "asc" },
   });
 
-  categorySelect.onchange = () => {
-    const selectedCategory = categorySelect.value;
-    ts.clearOptions();
+  function updateForBuilding(buildingId: string, floorId?: string) {
+    activeBuildingId = buildingId;
+    activeFloorId = floorId;
+    const normBId = hazardStore.normalizeBuildingId(buildingId);
+    const building =
+      CONFIGURED_BUILDINGS.find(
+        (b) => hazardStore.normalizeBuildingId(b.id) === normBId
+      ) || CONFIGURED_BUILDINGS[0];
 
-    if (selectedCategory === "Emergency Exits") {
-      ts.addOption({ value: "", text: "Choose an emergency exit..." });
-      ts.setValue("");
-      exitRegistry.getVerifiedEmergencyExits().forEach((exit) => {
-        ts.addOption({
-          value: exit.spaceId,
-          text: `🚨 ${exit.name} [${exit.buildingName} - ${exit.floorName}]`,
-        });
-      });
-      ts.refreshOptions(false);
-      return;
-    }
+    const buildingFloors = (
+      building.floors || [{ id: building.floorId, name: building.floorName }]
+    ).map((f) => f.id);
+    const targetFloors =
+      floorId && floorId !== "all" ? [floorId] : buildingFloors;
 
-    if (selectedCategory === "Building Entrances") {
-      ts.addOption({ value: "", text: "Choose a building entrance..." });
-      ts.setValue("");
-      exitRegistry.getVerifiedEntrances().forEach((entrance) => {
-        ts.addOption({
-          value: entrance.spaceId,
-          text: `🚪 ${entrance.name} [${entrance.buildingName} - ${entrance.floorName}]`,
-        });
-      });
-      ts.refreshOptions(false);
-      return;
-    }
+    // Filter spaces belonging to this building and target floors
+    const bSpaces = mapDataRef.getByType("space").filter((s) => {
+      const sFloorId = typeof s.floor === "string" ? s.floor : s.floor?.id;
+      return (
+        sFloorId &&
+        targetFloors.includes(sFloorId) &&
+        s.name &&
+        s.name.trim().length > 0
+      );
+    });
 
-    if (selectedCategory === "Professors") {
-      ts.addOption({ value: "", text: "Choose a professor..." });
-      ts.setValue("");
+    // Filter verified exits and entrances belonging to this building and target floors
+    const bExits = exitRegistry.getAll().filter((e) => {
+      const matchB = hazardStore.normalizeBuildingId(e.buildingId) === normBId;
+      const matchF = !floorId || floorId === "all" || e.floorId === floorId;
+      return matchB && matchF;
+    });
 
-      Object.entries(professors).forEach(([profName, officeName]) => {
-        const space = spaces.find((s) => s.name === officeName);
-        if (space) {
-          ts.addOption({ value: space.id, text: profName });
+    const verifiedEntrances = bExits.filter((e) => e.isEntrance);
+    const verifiedEmergencyExits = bExits.filter((e) => e.isEmergencyExit);
+
+    // Build categories
+    const categories: Record<
+      string,
+      { type: "space" | "exit"; item: any }[]
+    > = {
+      "All Locations": [],
+      "Emergency Exits": [],
+      "Building Entrances": [],
+      Classrooms: [],
+      Offices: [],
+      Labs: [],
+      "Bedrooms / Living": [],
+      Washrooms: [],
+      "Canteens & Dining": [],
+      Professors: [],
+      "Other Spaces": [],
+    };
+
+    // 1. Add emergency exits
+    verifiedEmergencyExits.forEach((ex) => {
+      categories["Emergency Exits"].push({ type: "exit", item: ex });
+      categories["All Locations"].push({ type: "exit", item: ex });
+    });
+
+    // 2. Add building entrances
+    verifiedEntrances.forEach((en) => {
+      categories["Building Entrances"].push({ type: "exit", item: en });
+      if (!verifiedEmergencyExits.some((ex) => ex.doorId === en.doorId)) {
+        categories["All Locations"].push({ type: "exit", item: en });
+      }
+    });
+
+    // 3. Classify spaces
+    bSpaces.forEach((s) => {
+      const name = s.name.trim().toLowerCase();
+      let cat = "Other Spaces";
+      if (name.startsWith("classroom") || name.includes("class")) {
+        cat = "Classrooms";
+      } else if (name.startsWith("office") || name.includes("office")) {
+        cat = "Offices";
+      } else if (name.includes("lab")) {
+        cat = "Labs";
+      } else if (
+        name.includes("bed") ||
+        name.includes("living") ||
+        name.includes("drawing") ||
+        name.includes("lobby") ||
+        name.includes("porch") ||
+        name.includes("court")
+      ) {
+        cat = "Bedrooms / Living";
+      } else if (
+        name.includes("washroom") ||
+        name.includes("toilet") ||
+        name.includes("bath") ||
+        name.includes("wc")
+      ) {
+        cat = "Washrooms";
+      } else if (
+        name.includes("canteen") ||
+        name.includes("cafeteria") ||
+        name.includes("dining") ||
+        name.includes("kitchen") ||
+        name.includes("break")
+      ) {
+        cat = "Canteens & Dining";
+      } else if (s.name && Object.values(professors).includes(s.name)) {
+        cat = "Professors";
+      }
+
+      categories[cat].push({ type: "space", item: s });
+      categories["All Locations"].push({ type: "space", item: s });
+    });
+
+    // Populate categorySelect
+    categorySelect.innerHTML = "";
+    Object.keys(categories).forEach((cat) => {
+      if (categories[cat].length > 0) {
+        const option = document.createElement("option");
+        option.value = cat;
+        option.textContent = `${cat} (${categories[cat].length})`;
+        categorySelect.appendChild(option);
+      }
+    });
+
+    function populateCategoryItems(selectedCategory: string) {
+      ts.clearOptions();
+      const placeholderText = isDestination
+        ? "Choose destination (room / exit)..."
+        : "Choose starting location...";
+      ts.addOption({ value: "", text: placeholderText });
+
+      const items = categories[selectedCategory] || [];
+      items.forEach(({ type, item }) => {
+        if (type === "exit") {
+          const ex: BuildingEntranceExit = item;
+          const isBlocked =
+            hazardStore.isLocationBlocked(ex.doorId, normBId) ||
+            hazardStore.isFloorBlocked(ex.floorId, normBId);
+          const icon = isBlocked
+            ? "⛔ [BLOCKED] "
+            : ex.isEmergencyExit
+            ? "🚨 "
+            : "🚪 ";
+          const text = `${icon}${ex.name} (${ex.floorName})`;
+          ts.addOption({ value: ex.doorId, text });
+        } else {
+          const sp: Space = item;
+          const sFloorId =
+            typeof sp.floor === "string" ? sp.floor : sp.floor?.id;
+          const flObj = mapDataRef.getById("floor", sFloorId || "");
+          const floorLabel = flObj?.name || "Floor";
+          const isBlocked =
+            hazardStore.isLocationBlocked(sp.id, normBId) ||
+            (sFloorId ? hazardStore.isFloorBlocked(sFloorId, normBId) : false);
+          const prefix = isBlocked ? "⛔ [BLOCKED] " : "";
+          const text = `${prefix}${sp.name} (${floorLabel})`;
+          ts.addOption({ value: sp.id, text });
         }
       });
+
       ts.refreshOptions(false);
-      return;
     }
 
-    const filteredSpaces = categories[selectedCategory] || [];
-    ts.addOption({ value: "", text: "Choose a space..." });
-    ts.setValue("");
+    categorySelect.onchange = () => {
+      populateCategoryItems(categorySelect.value);
+    };
 
-    filteredSpaces.forEach((s) => {
-      ts.addOption({ value: s.id, text: s.name });
-    });
-    ts.refreshOptions(false);
-  };
-
-  if (categorySelect.options.length > 0) {
-    categorySelect.selectedIndex = 0;
-    categorySelect.dispatchEvent(new Event("change"));
+    if (categorySelect.options.length > 0) {
+      categorySelect.selectedIndex = 0;
+      populateCategoryItems(categorySelect.value);
+    }
   }
 
-  // ✅ NEW: returned so callers (quick-access chips) can jump straight to
-  // a specific space without the user manually picking a category first.
+  (ts as any).updateForBuilding = updateForBuilding;
   return ts;
 }
 
@@ -972,10 +1060,64 @@ function speakInstruction(text: string, opts?: { buzz?: boolean }) {
   }
 }
 
-// ✅ NEW: route-summary overlay, shown after Generate computes a route but
-// BEFORE any simulated movement starts. Sits on its own layer above
-// everything else (zIndex 10000) since it's meant to fully block
-// interaction until the user taps Start or Cancel.
+function renderTurnByTurnDirections(
+  announcements: Announcement[],
+  withBuildingCrossings: any[],
+  totalDistance: number,
+  etaText: string
+) {
+  const directionsListEl = document.getElementById("directionsList");
+  if (!directionsListEl) return;
+  directionsListEl.innerHTML = "";
+
+  const detailsEl = directionsListEl.closest("details");
+  if (detailsEl) {
+    detailsEl.open = true; // Auto-expand so directions are visible right away
+  }
+
+  // Header summary badge
+  const headerLi = document.createElement("li");
+  headerLi.style.listStyleType = "none";
+  headerLi.style.marginLeft = "-1.1rem";
+  headerLi.style.marginBottom = "10px";
+  headerLi.style.padding = "8px 12px";
+  headerLi.style.background = "#e8f0fe";
+  headerLi.style.borderRadius = "8px";
+  headerLi.style.color = "#1a73e8";
+  headerLi.style.fontWeight = "700";
+  headerLi.style.fontSize = "13px";
+  headerLi.style.display = "flex";
+  headerLi.style.alignItems = "center";
+  headerLi.style.justifyContent = "space-between";
+  headerLi.innerHTML = `<span>🧭 <b>${etaText}</b> (${Math.round(totalDistance)}m)</span> <span style="font-size:11px; background:#fff; padding:2px 8px; border-radius:999px; border:1px solid #c2e7ff;">${announcements.length} steps</span>`;
+  directionsListEl.appendChild(headerLi);
+
+  announcements.forEach((ann, idx) => {
+    const li = document.createElement("li");
+    li.style.padding = "6px 0";
+    li.style.borderBottom = "1px solid var(--border)";
+    li.style.fontSize = "13px";
+    li.style.lineHeight = "1.4";
+
+    let icon = "🚶";
+    const lower = ann.text.toLowerCase();
+    if (lower.includes("left")) icon = "⬅️";
+    else if (lower.includes("right")) icon = "➡️";
+    else if (lower.includes("straight") || lower.includes("walk") || lower.includes("proceed")) icon = "⬆️";
+    else if (lower.includes("stair") || lower.includes("floor") || lower.includes("elevator") || lower.includes("vortex")) icon = "🪜";
+    else if (lower.includes("enter") || lower.includes("building")) icon = "🏢";
+    else if (lower.includes("destination") || lower.includes("arrive") || lower.includes("exit") || lower.includes("reach")) icon = "🎯";
+
+    const crossingInstr = withBuildingCrossings && withBuildingCrossings[idx];
+    const distText = crossingInstr && crossingInstr.distance ? ` <span style="color:var(--text-muted); font-size:11px;">(${Math.round(crossingInstr.distance)}m)</span>` : "";
+
+    li.innerHTML = `<span style="font-size:14px; margin-right:6px;">${icon}</span> <b>Step ${idx + 1}:</b> ${ann.text}${distText}`;
+    directionsListEl.appendChild(li);
+  });
+}
+
+// Route-summary floating card, shown after Generate computes a route.
+// Sits neatly at the bottom of the screen without dimming or blocking the map.
 function showRouteSummary(
   stats: { turns: number; floors: number; etaText: string },
   onStart: () => void,
@@ -988,82 +1130,93 @@ function showRouteSummary(
   if (!overlay) {
     overlay = document.createElement("div");
     overlay.id = "route-summary-overlay";
-    overlay.style.position = "fixed";
-    overlay.style.inset = "0";
-    overlay.style.background = "rgba(0,0,0,0.55)";
-    overlay.style.display = "flex";
-    overlay.style.alignItems = "center";
-    overlay.style.justifyContent = "center";
-    overlay.style.zIndex = "10000";
     document.body.appendChild(overlay);
   }
+
+  overlay.style.position = "fixed";
+  overlay.style.bottom = "20px";
+  overlay.style.left = "0";
+  overlay.style.right = "0";
+  overlay.style.top = "auto";
+  overlay.style.background = "transparent";
+  overlay.style.pointerEvents = "none";
+  overlay.style.display = "flex";
+  overlay.style.alignItems = "center";
+  overlay.style.justifyContent = "center";
+  overlay.style.zIndex = "9998";
 
   overlay.innerHTML = "";
 
   const card = document.createElement("div");
-  card.style.background = "#fff";
+  card.style.background = "rgba(255, 255, 255, 0.98)";
+  card.style.backdropFilter = "blur(8px)";
   card.style.borderRadius = "14px";
-  card.style.padding = "24px 28px";
-  card.style.minWidth = "260px";
-  card.style.maxWidth = "90%";
-  card.style.textAlign = "center";
-  card.style.boxShadow = "0 8px 30px rgba(0,0,0,0.3)";
+  card.style.padding = "12px 18px";
+  card.style.pointerEvents = "auto";
+  card.style.display = "flex";
+  card.style.alignItems = "center";
+  card.style.gap = "16px";
+  card.style.boxShadow = "0 8px 30px rgba(0,0,0,0.22)";
+  card.style.border = "1px solid #e2e8f0";
   card.style.fontFamily = "inherit";
 
+  const infoCol = document.createElement("div");
   const title = document.createElement("div");
-  title.textContent = "Route ready";
-  title.style.fontSize = "18px";
-  title.style.fontWeight = "700";
-  title.style.marginBottom = "10px";
-  card.appendChild(title);
+  title.innerHTML = `🏁 <b>Route Ready: ${stats.etaText}</b>`;
+  title.style.fontSize = "14px";
+  title.style.color = "#1e293b";
+  infoCol.appendChild(title);
 
-  const summaryLine = document.createElement("div");
   const floorWord = stats.floors > 1 ? "floors" : "floor";
   const turnWord = stats.turns === 1 ? "turn" : "turns";
-  summaryLine.textContent = `${stats.turns} ${turnWord} · ${stats.floors} ${floorWord} · ${stats.etaText}`;
-  summaryLine.style.fontSize = "14px";
-  summaryLine.style.color = "#444";
-  summaryLine.style.marginBottom = "20px";
-  card.appendChild(summaryLine);
+  const subLine = document.createElement("div");
+  subLine.textContent = `${stats.turns} ${turnWord} · ${stats.floors} ${floorWord} · Directions loaded`;
+  subLine.style.fontSize = "11px";
+  subLine.style.color = "#64748b";
+  infoCol.appendChild(subLine);
+  card.appendChild(infoCol);
 
   const buttonRow = document.createElement("div");
   buttonRow.style.display = "flex";
-  buttonRow.style.gap = "10px";
-  buttonRow.style.justifyContent = "center";
-
-  const cancelBtn = document.createElement("button");
-  cancelBtn.textContent = "Cancel";
-  cancelBtn.style.padding = "10px 20px";
-  cancelBtn.style.borderRadius = "8px";
-  cancelBtn.style.border = "1px solid #ccc";
-  cancelBtn.style.background = "#fff";
-  cancelBtn.style.color = "#333";
-  cancelBtn.style.fontWeight = "600";
-  cancelBtn.style.cursor = "pointer";
-  cancelBtn.onclick = () => {
-    hideRouteSummary();
-    onCancel();
-  };
-  buttonRow.appendChild(cancelBtn);
+  buttonRow.style.gap = "8px";
 
   const startBtn = document.createElement("button");
-  startBtn.textContent = "Start";
-  startBtn.style.padding = "10px 24px";
+  startBtn.innerHTML = "▶ Start Walk";
+  startBtn.style.padding = "8px 16px";
   startBtn.style.borderRadius = "8px";
   startBtn.style.border = "none";
-  startBtn.style.background = "#4CD0A4";
-  startBtn.style.color = "#000";
+  startBtn.style.background = "#188038";
+  startBtn.style.color = "#fff";
   startBtn.style.fontWeight = "700";
+  startBtn.style.fontSize = "13px";
   startBtn.style.cursor = "pointer";
+  startBtn.style.boxShadow = "0 2px 8px rgba(24,128,56,0.35)";
   startBtn.onclick = () => {
     hideRouteSummary();
     onStart();
   };
   buttonRow.appendChild(startBtn);
 
+  const cancelBtn = document.createElement("button");
+  cancelBtn.innerHTML = "✕ Clear";
+  cancelBtn.style.padding = "8px 12px";
+  cancelBtn.style.borderRadius = "8px";
+  cancelBtn.style.border = "1px solid #cbd5e1";
+  cancelBtn.style.background = "#f8fafc";
+  cancelBtn.style.color = "#475569";
+  cancelBtn.style.fontWeight = "600";
+  cancelBtn.style.fontSize = "13px";
+  cancelBtn.style.cursor = "pointer";
+  cancelBtn.onclick = () => {
+    hideRouteSummary();
+    mapView.Navigation.clear();
+    deleteSpaceMarker();
+    onCancel();
+  };
+  buttonRow.appendChild(cancelBtn);
+
   card.appendChild(buttonRow);
   overlay.appendChild(card);
-  overlay.style.display = "flex";
 }
 
 function hideRouteSummary() {
@@ -1260,8 +1413,13 @@ async function init(mapDataOptions: TGetMapDataOptions) {
       blueDotEnabled = true;
     }
 
+    if (!startSpaceSelector.value || !endSpaceSelector.value) {
+      showToast("Please select both a Starting Location and a Destination.");
+      return;
+    }
+
     if (startSpaceSelector.value === endSpaceSelector.value) {
-      console.error("Can't generate a path from a location to itself");
+      showToast("Starting location and destination cannot be the same.");
       return;
     }
 
@@ -1275,27 +1433,77 @@ async function init(mapDataOptions: TGetMapDataOptions) {
         5
       );
 
-      const start = mapData.getById("space", startSpaceSelector.value);
-      const end = mapData.getById("space", endSpaceSelector.value);
+      const start =
+        mapData.getById("door", startSpaceSelector.value) ||
+        mapData.getById("space", startSpaceSelector.value);
+      const end =
+        mapData.getById("door", endSpaceSelector.value) ||
+        mapData.getById("space", endSpaceSelector.value);
 
       if (start && end) {
-        const zones = hazardStore.getMappedinZones(mapData);
-        const directions =
+        // 1. Strict Hazard Checks: Blocked starting location
+        if (hazardStore.isLocationBlocked(startSpaceSelector.value, currentNavBuildingId)) {
+          mapView.Navigation.clear();
+          positions = undefined;
+          activeInstructions = [];
+          hideInstructionBanner();
+          alert("NO SAFE ROUTE AVAILABLE — YOUR DESTINATION CANNOT BE REACHED WITHOUT CROSSING A BLOCKED AREA.");
+          return;
+        }
+
+        // 2. Strict Hazard Checks: Blocked destination
+        if (hazardStore.isLocationBlocked(endSpaceSelector.value, currentNavBuildingId)) {
+          mapView.Navigation.clear();
+          positions = undefined;
+          activeInstructions = [];
+          hideInstructionBanner();
+          alert("NO SAFE ROUTE AVAILABLE — YOUR DESTINATION CANNOT BE REACHED WITHOUT CROSSING A BLOCKED AREA.");
+          return;
+        }
+
+        // 3. Strict Hazard Checks: Blocked floor traversal
+        const startFloorId = typeof (start as any).floor === "string" ? (start as any).floor : (start as any).floor?.id;
+        const endFloorId = typeof (end as any).floor === "string" ? (end as any).floor : (end as any).floor?.id;
+        if (startFloorId && hazardStore.isFloorBlocked(startFloorId, currentNavBuildingId)) {
+          mapView.Navigation.clear();
+          positions = undefined;
+          activeInstructions = [];
+          hideInstructionBanner();
+          alert("NO SAFE ROUTE AVAILABLE — YOUR DESTINATION CANNOT BE REACHED WITHOUT CROSSING A BLOCKED AREA.");
+          return;
+        }
+        if (endFloorId && hazardStore.isFloorBlocked(endFloorId, currentNavBuildingId)) {
+          mapView.Navigation.clear();
+          positions = undefined;
+          activeInstructions = [];
+          hideInstructionBanner();
+          alert("NO SAFE ROUTE AVAILABLE — YOUR DESTINATION CANNOT BE REACHED WITHOUT CROSSING A BLOCKED AREA.");
+          return;
+        }
+
+        const zones = hazardStore.getMappedinZones(mapData, currentNavBuildingId);
+        let directions =
           zones.length > 0
             ? mapData.getDirections(start, end, { zones })
             : mapData.getDirections(start, end);
 
+        // Fallback: If routing directly to door failed, try door.center coordinate
         if (!directions) {
-          console.warn("⚠️ No route found between start and end!");
-          if (zones.length > 0) {
-            alert(
-              "⚠️ ROUTE BLOCKED BY ACTIVE HAZARDS: All walkable paths between these locations are currently impassable due to reported hazard zones. Please select an alternative route or use CampusResQ 'Find Nearest Safe Exit'."
-            );
-          } else {
-            alert(
-              "No walkable path could be found between the selected locations."
-            );
-          }
+          const navStart = (start as any).center || start;
+          const navEnd = (end as any).center || end;
+          directions =
+            zones.length > 0
+              ? mapData.getDirections(navStart, navEnd, { zones })
+              : mapData.getDirections(navStart, navEnd);
+        }
+
+        if (!directions) {
+          console.warn("⚠️ No safe route found between start and end!");
+          mapView.Navigation.clear();
+          positions = undefined;
+          activeInstructions = [];
+          hideInstructionBanner();
+          alert("NO SAFE ROUTE AVAILABLE — YOUR DESTINATION CANNOT BE REACHED WITHOUT CROSSING A BLOCKED AREA.");
           return;
         }
 
@@ -1310,9 +1518,18 @@ async function init(mapDataOptions: TGetMapDataOptions) {
             };
             console.log("🎯 Destination set:", destinationCoord);
 
+            const isExitOrEntrance =
+              exitRegistry.getByDoorId(endSpaceSelector.value) ||
+              exitRegistry.getBySpaceId(endSpaceSelector.value);
+            const markerLabel = isExitOrEntrance
+              ? (isExitOrEntrance.type === "entrance"
+                  ? `🚪 ${isExitOrEntrance.name}`
+                  : `🚨 ${isExitOrEntrance.name}`)
+              : `🏁 Destination`;
+
             mapView.Markers.add(
               lastStep.coordinate,
-              `<div style="font-size: 18px;">🏁 Destination</div>`,
+              `<div style="font-size: 16px; font-weight: bold; background: white; padding: 4px 8px; border-radius: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.3); border: 2px solid ${isExitOrEntrance ? "#dc2626" : "#2563eb"};">${markerLabel}</div>`,
               { rank: 10 }
             );
           }
@@ -1332,77 +1549,6 @@ async function init(mapDataOptions: TGetMapDataOptions) {
           });
           console.log("Generated positions:", positions.slice(0, 5));
 
-          // ------------------ AUTO CHASE-CAM ON GENERATE ------------------
-          // ✅ NEW: forces walk (chase) mode and snaps the camera in behind
-          // the dot's INITIAL heading immediately — no waiting for two live
-          // ticks to accumulate a bearing, and no manual view-mode click
-          // required. Every subsequent tick's follow-block (in
-          // applyPositionUpdate) then keeps it locked in chase mode and
-          // rotates it live as the dot turns, since cameraMode simply
-          // never reverts to "map" on its own.
-          if (positions && positions.length > 1) {
-            cameraMode = "walk";
-            updateViewModeButtonLabel();
-
-            const first = positions[0];
-            const second = positions
-              .slice(1)
-              .find((p) => p.latitude != null && p.longitude != null);
-
-            if (
-              first.latitude != null &&
-              first.longitude != null &&
-              second &&
-              second.latitude != null &&
-              second.longitude != null
-            ) {
-              const initialBearing = calculateBearing(
-                first.latitude,
-                first.longitude,
-                second.latitude,
-                second.longitude
-              );
-              lastComputedBearing = initialBearing;
-              animatedBearing = initialBearing;
-              lastAppliedPosition = {
-                latitude: first.latitude,
-                longitude: first.longitude,
-              };
-
-              if (
-                first.floorOrFloorId &&
-                mapView.currentFloor.id !== first.floorOrFloorId
-              ) {
-                mapView.setFloor(first.floorOrFloorId);
-              }
-
-              const moveToken = ++programmaticMoveToken;
-              isProgrammaticCameraMove = true;
-              const startCoordinate = mapView.createCoordinate(
-                first.latitude,
-                first.longitude,
-                first.floorOrFloorId
-              );
-              mapView.Camera.animateTo(
-                {
-                  center: startCoordinate,
-                  bearing: initialBearing,
-                  pitch: WALK_CAMERA_PITCH_DEGREES,
-                  zoomLevel: 30,
-                },
-                { duration: 500, easing: "ease-in-out" }
-              );
-              setTimeout(() => {
-                if (moveToken === programmaticMoveToken) {
-                  isProgrammaticCameraMove = false;
-                }
-              }, 600);
-            }
-
-            followingBlueDot = true;
-            updateRecenterButtonState();
-          }
-
           // ✅ CHANGED: instruction/building-crossing computation moved
           // OUT of the showPathCheckbox conditional and up here — the
           // route-summary card (below) needs the turn count regardless of
@@ -1412,11 +1558,6 @@ async function init(mapDataOptions: TGetMapDataOptions) {
           activeInstructions = [];
           spokenSteps.clear();
           lastDistanceToFrontInstruction = null;
-
-          // NOTE: lastAppliedPosition / lastComputedBearing / animatedBearing
-          // are deliberately NOT reset here — the auto chase-cam block
-          // above just seeded them with the real initial heading, and
-          // resetting them back to 0 here would undo that snap.
 
           buildingCrossings = [];
           nextCrossingPointer = 0;
@@ -1484,28 +1625,111 @@ async function init(mapDataOptions: TGetMapDataOptions) {
               (document.getElementById("pathRadius") as HTMLInputElement).value
             );
 
+            // CampusResQ: When in Emergency Mode or evacuating to an emergency exit, render safe path in green (#188038)
+            const isEmergencyRoute =
+              emergencyPanel?.isEmergencyModeActive?.() ||
+              !!exitRegistry.getByDoorId(endSpaceSelector.value) ||
+              !!exitRegistry.getBySpaceId(endSpaceSelector.value);
+            const effectiveColor = isEmergencyRoute ? "#188038" : pathColor;
+
             mapView.Navigation.draw(directions, {
               pathOptions: {
-                color: pathColor,
+                color: effectiveColor,
                 nearRadius: pathRadius,
               },
             });
           }
 
-          // ------------------ ROUTE SUMMARY, THEN START ------------------
-          // ✅ NEW: don't start simulated movement yet. Compute the
-          // headline stats, show the summary card, and only call
-          // fakePositionUpdater.start(...) once the user taps Start —
-          // Cancel just discards the generated route instead.
+          // On mobile only (< 900px), collapse sheet slightly to open up map view
+          if (window.innerWidth < 900) {
+            const mainSidebarEl = document.getElementById("sidebar");
+            if (mainSidebarEl) {
+              mainSidebarEl.classList.remove("expanded");
+            }
+          }
+
+          // ------------------ AUTO CHASE-CAM ON GENERATE ------------------
+          // ✅ Restored: snaps the camera into angled walk (chase) mode behind
+          // the dot's initial heading immediately after route generation.
+          if (positions && positions.length > 1) {
+            cameraMode = "walk";
+            updateViewModeButtonLabel();
+
+            const first = positions[0];
+            const second = positions
+              .slice(1)
+              .find((p) => p.latitude != null && p.longitude != null);
+
+            if (
+              first.latitude != null &&
+              first.longitude != null &&
+              second &&
+              second.latitude != null &&
+              second.longitude != null
+            ) {
+              const initialBearing = calculateBearing(
+                first.latitude,
+                first.longitude,
+                second.latitude,
+                second.longitude
+              );
+              lastComputedBearing = initialBearing;
+              animatedBearing = initialBearing;
+              lastAppliedPosition = {
+                latitude: first.latitude,
+                longitude: first.longitude,
+              };
+
+              if (
+                first.floorOrFloorId &&
+                mapView.currentFloor.id !== first.floorOrFloorId
+              ) {
+                mapView.setFloor(first.floorOrFloorId);
+              }
+
+              const moveToken = ++programmaticMoveToken;
+              isProgrammaticCameraMove = true;
+              const startFloorObj = first.floorOrFloorId
+                ? mapData.getById("floor", first.floorOrFloorId)
+                : undefined;
+              const startCoordinate = startFloorObj
+                ? mapView.createCoordinate(
+                    first.latitude,
+                    first.longitude,
+                    startFloorObj
+                  )
+                : mapView.createCoordinate({
+                    latitude: first.latitude,
+                    longitude: first.longitude,
+                    floorId: first.floorOrFloorId,
+                  });
+              mapView.Camera.animateTo(
+                {
+                  center: startCoordinate,
+                  bearing: initialBearing,
+                  pitch: WALK_CAMERA_PITCH_DEGREES,
+                  zoomLevel: 30,
+                },
+                { duration: 500, easing: "ease-in-out" }
+              );
+              setTimeout(() => {
+                if (moveToken === programmaticMoveToken) {
+                  isProgrammaticCameraMove = false;
+                }
+              }, 600);
+            }
+
+            followingBlueDot = true;
+            updateRecenterButtonState();
+          }
+
+          // ------------------ ROUTE SUMMARY & IMMEDIATE INSTRUCTIONS ------------------
           if (positions) {
             const turnCount = withBuildingCrossings.filter(
               (instr) => instr.action?.type === "Turn"
             ).length;
 
-            // Distinct floors actually walked through, taken from the
-            // generated position stream (more reliable than counting
-            // TakeVortex instructions, which can be undercounted if a
-            // multi-floor stack collapses oddly).
+            // Distinct floors actually walked through
             const floorIds = new Set(
               positions
                 .map((p) => p.floorOrFloorId)
@@ -1516,6 +1740,23 @@ async function init(mapDataOptions: TGetMapDataOptions) {
             const totalDistance = computeRemainingDistanceMeters(positions, 0);
             const etaText = formatEtaText(totalDistance);
 
+            // 1. Immediately show Instruction Banner
+            if (activeInstructions.length > 0) {
+              showInstructionBanner(
+                activeInstructions[0].instruction,
+                activeInstructions[1]?.instruction,
+                etaText
+              );
+            }
+
+            // 2. Immediately populate Turn-by-Turn Directions in the sidebar
+            renderTurnByTurnDirections(
+              announcements,
+              withBuildingCrossings,
+              totalDistance,
+              etaText
+            );
+
             const startNavigation = () => {
               fakePositionUpdater.start(
                 positions!,
@@ -1525,17 +1766,16 @@ async function init(mapDataOptions: TGetMapDataOptions) {
             };
 
             const cancelNavigation = () => {
-              // Lightweight cancel: discard the generated route so a
-              // stale queue/positions array can't linger into the next
-              // Generate click. Doesn't touch BlueDot enable state or
-              // markers — those are harmless left as-is until the user
-              // either regenerates or hits the full Reset button.
               positions = undefined;
               activeInstructions = [];
               buildingCrossings = [];
               nextCrossingPointer = 0;
               crossingToastShownFor.clear();
               hideInstructionBanner();
+              const directionsListEl = document.getElementById("directionsList");
+              if (directionsListEl) {
+                directionsListEl.innerHTML = "";
+              }
             };
 
             showRouteSummary(
@@ -1558,18 +1798,16 @@ async function init(mapDataOptions: TGetMapDataOptions) {
   const startTomSelect = setupCategoryDropdown(
     document.getElementById("startCategory") as HTMLSelectElement,
     document.getElementById("startSpace") as HTMLSelectElement,
-    mapData.getByType("space")
+    mapData,
+    false
   );
 
   const endTomSelect = setupCategoryDropdown(
     document.getElementById("endCategory") as HTMLSelectElement,
     document.getElementById("endSpace") as HTMLSelectElement,
-    mapData.getByType("space")
+    mapData,
+    true
   );
-
-  if (endSpaceSelector.options.length > 1) {
-    endSpaceSelector.value = startSpaceSelector.options[1].value;
-  }
 
   // ------------------ QUICK-ACCESS CHIPS ------------------
   // ✅ CHANGED: category chips (Canteen / Washroom / Water Cooler) no
@@ -1599,7 +1837,7 @@ async function init(mapDataOptions: TGetMapDataOptions) {
       return withCenters[0];
     }
 
-    const startSpace = mapData.getById("space", startId);
+    const startSpace = (mapData.getById("door", startId) as any) || mapData.getById("space", startId);
     if (!startSpace || !startSpace.center) return withCenters[0];
 
     const startFloorId = getSpaceFloorId(startSpace);
@@ -1955,33 +2193,51 @@ async function init(mapDataOptions: TGetMapDataOptions) {
     document.body.appendChild(sosButton);
 
     sosButton.addEventListener("click", async () => {
-      if (!startSpaceSelector.value) {
-        showToast("Pick where you are (From) first to share your SOS location");
-        setTimeout(hideToast, 2500);
-        return;
+      let spaceId = startSpaceSelector.value;
+      if (!spaceId) {
+        const building =
+          CONFIGURED_BUILDINGS.find(
+            (b) =>
+              hazardStore.normalizeBuildingId(b.id) ===
+              hazardStore.normalizeBuildingId(currentNavBuildingId)
+          ) || CONFIGURED_BUILDINGS[0];
+        spaceId = building.defaultStartSpaceId;
+        startSpaceSelector.value = spaceId;
+        if (startTomSelect && typeof startTomSelect.setValue === "function") {
+          startTomSelect.setValue(spaceId);
+        }
       }
+
       const url = new URL(window.location.href);
       url.search = "";
-      url.searchParams.set("meet", startSpaceSelector.value);
+      url.searchParams.set("meet", spaceId);
       url.searchParams.set("sos", "true");
       const sosUrl = url.toString();
 
-      const victimSpace = mapData.getById("space", startSpaceSelector.value);
+      const victimSpace =
+        (mapData.getById("door", spaceId) as any) ||
+        mapData.getById("space", spaceId);
+      const locName = victimSpace?.name || spaceId;
       incidentService.createIncident({
-        reportedLocation: `${victimSpace?.name || startSpaceSelector.value} (SOS)`,
-        locationSpaceId: startSpaceSelector.value,
+        reportedLocation: `${locName} (SOS Beacon)`,
+        locationSpaceId: spaceId,
         incidentType: "sos",
         severity: "critical",
-        notes: "Emergency SOS broadcast created by user.",
+        notes: "Emergency SOS distress beacon broadcasted by user.",
       });
 
       try {
         await navigator.clipboard.writeText(sosUrl);
-        showToast("🆘 SOS Link copied! Share with responders to direct them to your location.");
-        setTimeout(hideToast, 3500);
+        showToast("🆘 SOS Link copied! Opening Emergency Safety Hub...");
+        setTimeout(hideToast, 2500);
       } catch {
-        window.prompt("Copy this SOS Rescue link:", sosUrl);
+        // clipboard unavailable
       }
+
+      // Immediately activate emergency mode and open SOS Hub!
+      emergencyPanel.setEmergencyMode(true);
+      emergencyPanel.expand();
+      emergencyPanel.showIncidentDashboard();
     });
   }
 
@@ -1994,17 +2250,23 @@ async function init(mapDataOptions: TGetMapDataOptions) {
     const meetSpaceId = params.get("meet");
     if (!meetSpaceId) return;
 
-    const meetSpace = mapData.getById("space", meetSpaceId);
-    if (!meetSpace) {
+    const meetTarget: any =
+      mapData.getById("door", meetSpaceId) ||
+      mapData.getById("space", meetSpaceId);
+    if (!meetTarget) {
       console.warn(
-        "⚠️ Shared link references a space that doesn't exist in this venue"
+        "⚠️ Shared link references a space/door that doesn't exist in this venue"
       );
       return;
     }
+    const meetName =
+      meetTarget.name ||
+      exitRegistry.getByDoorId(meetSpaceId)?.name ||
+      meetSpaceId;
 
     if (endTomSelect && typeof endTomSelect.addOption === "function") {
-      endTomSelect.addOption({ value: meetSpace.id, text: meetSpace.name });
-      endTomSelect.setValue(meetSpace.id);
+      endTomSelect.addOption({ value: meetSpaceId, text: meetName });
+      endTomSelect.setValue(meetSpaceId);
     }
     endSpaceSelector.value = meetSpaceId;
     onEndSpaceChange({ target: { value: meetSpaceId } });
@@ -2014,12 +2276,12 @@ async function init(mapDataOptions: TGetMapDataOptions) {
     if (isSos) {
       emergencyPanel.setEmergencyMode(true);
       showToast(
-        `🚨 SOS RESCUE ALERT: Victim located at ${meetSpace.name}! Select your current location (From) and tap Generate.`
+        `🚨 SOS RESCUE ALERT: Victim located at ${meetName}! Select your current location (From) and tap Generate.`
       );
       setTimeout(hideToast, 6000);
     } else {
       showToast(
-        `📍 Destination set to ${meetSpace.name} — pick "From" (where you are) and tap Generate`
+        `📍 Destination set to ${meetName} — pick "From" (where you are) and tap Generate`
       );
       setTimeout(hideToast, 5000);
     }
@@ -2168,53 +2430,6 @@ async function init(mapDataOptions: TGetMapDataOptions) {
     anchor.parentElement?.insertBefore(chipBar, anchor);
   }
 
-  updateFavoriteButtonState();
-  buildFavoriteChips(mapData.getByType("space"));
-
-  // ------------------ CAMPUSRESQ EMERGENCY INITIALIZATION ------------------
-  emergencyPanel.init(mapData, mapView, {
-    getCurrentStartSpace: () => {
-      if (!startSpaceSelector.value) return undefined;
-      return mapData.getById("space", startSpaceSelector.value);
-    },
-    setDestinationSpace: (spaceId: string) => {
-      const space = mapData.getById("space", spaceId);
-      const exit = exitRegistry.getBySpaceId(spaceId);
-      const displayName = exit ? exit.name : (space ? space.name : spaceId);
-
-      if (endTomSelect && typeof endTomSelect.addOption === "function") {
-        endTomSelect.addOption({ value: spaceId, text: displayName });
-        endTomSelect.setValue(spaceId);
-      }
-      endSpaceSelector.value = spaceId;
-      onEndSpaceChange({ target: { value: spaceId } });
-      updateFavoriteButtonState();
-    },
-    setStartSpace: (spaceId: string) => {
-      const space = mapData.getById("space", spaceId);
-      const exit = exitRegistry.getBySpaceId(spaceId);
-      const displayName = exit ? exit.name : (space ? space.name : spaceId);
-
-      if (startTomSelect && typeof startTomSelect.addOption === "function") {
-        startTomSelect.addOption({ value: spaceId, text: displayName });
-        startTomSelect.setValue(spaceId);
-      }
-      startSpaceSelector.value = spaceId;
-      onStartSpaceChange({ target: { value: spaceId } });
-    },
-    onRouteGenerated: (directions: any, destinationSpace: Space) => {
-      generateButton.click();
-    },
-    onClearNavigation: () => {
-      mapView.Navigation.clear();
-      positions = undefined;
-      fakePositionUpdater.reset();
-      mapView.BlueDot?.disable?.();
-      blueDotEnabled = false;
-      hideInstructionBanner();
-    },
-  });
-
   let setSpaceMarker: Marker | undefined;
 
   const deleteSpaceMarker = () => {
@@ -2224,6 +2439,432 @@ async function init(mapDataOptions: TGetMapDataOptions) {
     }
   };
   (window as any).deleteSpaceMarker = deleteSpaceMarker;
+
+  function switchNavBuilding(
+    buildingId: string,
+    syncEmergencyPanel: boolean = true
+  ) {
+    const normId = hazardStore.normalizeBuildingId(buildingId);
+    const building =
+      CONFIGURED_BUILDINGS.find(
+        (b) => hazardStore.normalizeBuildingId(b.id) === normId
+      ) || CONFIGURED_BUILDINGS[0];
+
+    currentNavBuildingId = building.id;
+
+    const navBuildingSelect = document.getElementById(
+      "navBuildingSelector"
+    ) as HTMLSelectElement;
+    if (navBuildingSelect && navBuildingSelect.value !== building.id) {
+      navBuildingSelect.value = building.id;
+    }
+
+    // 1. Clear previous navigation and state
+    mapView.Navigation.clear();
+    positions = undefined;
+    activeInstructions = [];
+    buildingCrossings = [];
+    nextCrossingPointer = 0;
+    crossingToastShownFor.clear();
+    fakePositionUpdater.reset();
+    mapView.BlueDot?.disable?.();
+    blueDotEnabled = false;
+    hideInstructionBanner();
+    deleteSpaceMarker();
+
+    if (previousColouredStart) {
+      if (!hazardStore.isLocationBlocked(previousColouredStart.id, currentNavBuildingId)) {
+        mapView.updateState(previousColouredStart, { color: "initial" });
+      }
+      previousColouredStart = undefined;
+    }
+    if (previousColouredEnd) {
+      if (!hazardStore.isLocationBlocked(previousColouredEnd.id, currentNavBuildingId)) {
+        mapView.updateState(previousColouredEnd, { color: "initial" });
+      }
+      previousColouredEnd = undefined;
+    }
+
+    // 2. Clear From & To selections
+    startSpaceSelector.value = "";
+    endSpaceSelector.value = "";
+    if (startTomSelect && typeof startTomSelect.clear === "function") {
+      startTomSelect.clear();
+    }
+    if (endTomSelect && typeof endTomSelect.clear === "function") {
+      endTomSelect.clear();
+    }
+
+    // 3. Populate navFloorSelector with the floors of this building
+    const navFloorSelect = document.getElementById(
+      "navFloorSelector"
+    ) as HTMLSelectElement;
+    const floors = building.floors || [
+      { id: building.floorId, name: building.floorName },
+    ];
+    if (navFloorSelect) {
+      navFloorSelect.innerHTML = "";
+      floors.forEach((fl) => {
+        const opt = document.createElement("option");
+        opt.value = fl.id;
+        opt.textContent = fl.name;
+        navFloorSelect.appendChild(opt);
+      });
+      if (floors.length > 1) {
+        const allOpt = document.createElement("option");
+        allOpt.value = "all";
+        allOpt.textContent = "All Floors (Multi-floor)";
+        navFloorSelect.appendChild(allOpt);
+      }
+      navFloorSelect.value = building.floorId;
+    }
+
+    // 4. Switch floor in mapView
+    if (building.floorId && mapView.currentFloor?.id !== building.floorId) {
+      mapView.setFloor(building.floorId);
+    }
+
+    // 5. Center camera on the building
+    try {
+      const centerLat = (building as any).center?.latitude || 43.4651;
+      const centerLon = (building as any).center?.longitude || -80.5242;
+      const coord = mapView.createCoordinate(centerLat, centerLon);
+      mapView.Camera.animateTo(
+        { center: coord, zoomLevel: 25 },
+        { duration: 600 }
+      );
+    } catch (err) {
+      console.warn("Could not center camera on building:", err);
+    }
+
+    // 6. Update From and To dropdowns
+    if (
+      startTomSelect &&
+      typeof (startTomSelect as any).updateForBuilding === "function"
+    ) {
+      (startTomSelect as any).updateForBuilding(building.id, building.floorId);
+    }
+    if (
+      endTomSelect &&
+      typeof (endTomSelect as any).updateForBuilding === "function"
+    ) {
+      (endTomSelect as any).updateForBuilding(building.id, building.floorId);
+    }
+
+    // 7. Set default start space if available
+    if (building.defaultStartSpaceId) {
+      const defaultSpace = mapData.getById("space", building.defaultStartSpaceId);
+      if (defaultSpace) {
+        const sFloorId =
+          typeof defaultSpace.floor === "string"
+            ? defaultSpace.floor
+            : defaultSpace.floor?.id;
+        const fl = mapData.getById("floor", sFloorId || "");
+        const label = `${defaultSpace.name || defaultSpace.id} (${
+          fl?.name || "Floor"
+        })`;
+        startTomSelect.addOption({ value: defaultSpace.id, text: label });
+        startTomSelect.setValue(defaultSpace.id);
+        startSpaceSelector.value = defaultSpace.id;
+        onStartSpaceChange({ target: { value: defaultSpace.id } });
+      }
+    }
+
+    // 7b. Set default destination if available (e.g. verified exit door or room)
+    const defaultEndId =
+      building.defaultEndTargetId ||
+      (building.id === "fs_6878b4d517d37f000bb0c288"
+        ? "e_36b51dda911ea5dc"
+        : building.id === "fs_687ce890e964ae000bd1b0e2"
+        ? "e_d91dc2e89bf6e0c7"
+        : "e_7d621cca039b07a9");
+
+    const defaultEndDoor = mapData.getById("door", defaultEndId);
+    const defaultEndSpace = mapData.getById("space", defaultEndId);
+    if (defaultEndDoor || defaultEndSpace) {
+      const exit =
+        exitRegistry.getByDoorId(defaultEndId) ||
+        exitRegistry.getBySpaceId(defaultEndId);
+      const label = exit
+        ? `${exit.type === "entrance" ? "🚪" : "🚨"} ${exit.name} (${exit.floorName})`
+        : defaultEndDoor
+        ? defaultEndDoor.name || "Entrance / Exit Door"
+        : defaultEndSpace?.name || defaultEndId;
+      endTomSelect.addOption({ value: defaultEndId, text: label });
+      endTomSelect.setValue(defaultEndId);
+      endSpaceSelector.value = defaultEndId;
+      onEndSpaceChange({ target: { value: defaultEndId } });
+    }
+
+    // 8. Filter Quick-Access and Favorite chips for this building's spaces
+    const buildingFloorIds = floors.map((f) => f.id);
+    const buildingSpaces = mapData.getByType("space").filter((s) => {
+      const sFloorId = typeof s.floor === "string" ? s.floor : s.floor?.id;
+      return sFloorId && buildingFloorIds.includes(sFloorId);
+    });
+    buildQuickAccessChips(buildingSpaces);
+    buildFavoriteChips(buildingSpaces);
+
+    // 9. Synchronize Emergency Panel
+    if (syncEmergencyPanel && emergencyPanel) {
+      if (emergencyPanel.getCurrentBuildingId() !== building.id) {
+        emergencyPanel.selectBuilding(building.id, false);
+      }
+    }
+    emergencyPanel?.renderMapMarkers?.();
+  }
+
+  // Wire up navBuildingSelector & navFloorSelector
+  const navBuildingSelect = document.getElementById(
+    "navBuildingSelector"
+  ) as HTMLSelectElement;
+  if (navBuildingSelect) {
+    navBuildingSelect.value = currentNavBuildingId;
+    navBuildingSelect.addEventListener("change", (e) => {
+      const chosenBuildingId = (e.target as HTMLSelectElement).value;
+      switchNavBuilding(chosenBuildingId, true);
+    });
+  }
+
+  const navFloorSelect = document.getElementById(
+    "navFloorSelector"
+  ) as HTMLSelectElement;
+  if (navFloorSelect) {
+    navFloorSelect.addEventListener("change", (e) => {
+      const chosenFloorId = (e.target as HTMLSelectElement).value;
+      if (chosenFloorId && chosenFloorId !== "all") {
+        mapView.setFloor(chosenFloorId);
+      }
+      emergencyPanel?.renderMapMarkers?.();
+      if (
+        startTomSelect &&
+        typeof (startTomSelect as any).updateForBuilding === "function"
+      ) {
+        (startTomSelect as any).updateForBuilding(
+          currentNavBuildingId,
+          chosenFloorId
+        );
+      }
+      if (
+        endTomSelect &&
+        typeof (endTomSelect as any).updateForBuilding === "function"
+      ) {
+        (endTomSelect as any).updateForBuilding(
+          currentNavBuildingId,
+          chosenFloorId
+        );
+      }
+    });
+  }
+
+  // Helper to test if a position path intersects any active hazard zone
+  function checkRouteIntersectsHazards(
+    coords: TBlueDotPositionUpdate[],
+    hazards: Hazard[]
+  ): boolean {
+    if (!coords || coords.length === 0 || !hazards || hazards.length === 0) return false;
+    for (const pt of coords) {
+      if (pt.latitude == null || pt.longitude == null) continue;
+      for (const h of hazards) {
+        if (h.floorId !== "all" && pt.floorOrFloorId && h.floorId !== pt.floorOrFloorId) continue;
+        if (h.locationType === "floor") return true;
+        const latDiff = (pt.latitude - h.coordinates.latitude) * 111000;
+        const lonDiff = (pt.longitude - h.coordinates.longitude) * 80000;
+        const dist = Math.sqrt(latDiff * latDiff + lonDiff * lonDiff);
+        if (dist <= (h.radiusMeters || 5.0)) return true;
+      }
+    }
+    return false;
+  }
+
+  // Subscribe to real-time hazard changes to refresh dropdown item badges and check active navigation
+  hazardStore.subscribe(() => {
+    if (
+      startTomSelect &&
+      typeof (startTomSelect as any).updateForBuilding === "function"
+    ) {
+      (startTomSelect as any).updateForBuilding(
+        currentNavBuildingId,
+        navFloorSelect?.value
+      );
+    }
+    if (
+      endTomSelect &&
+      typeof (endTomSelect as any).updateForBuilding === "function"
+    ) {
+      (endTomSelect as any).updateForBuilding(
+        currentNavBuildingId,
+        navFloorSelect?.value
+      );
+    }
+
+    // Dynamic rerouting of ACTIVE running navigation only
+    if (fakePositionUpdater.isRunning() && positions && positions.length > 0) {
+      const activeHazards = hazardStore.getActiveHazards().filter(
+        (h) => hazardStore.normalizeBuildingId(h.buildingId) === hazardStore.normalizeBuildingId(currentNavBuildingId)
+      );
+      const remainingStartIndex = Math.max(0, fakePositionUpdater.getLastEmittedIndex());
+      const remainingPositions = positions.slice(remainingStartIndex);
+
+      const isDestBlocked = hazardStore.isLocationBlocked(endSpaceSelector.value, currentNavBuildingId);
+      const isPathBlocked = isDestBlocked || checkRouteIntersectsHazards(remainingPositions, activeHazards);
+
+      if (isPathBlocked) {
+        console.warn("⚠️ Running navigation route intersects newly activated hazard!");
+        fakePositionUpdater.stop();
+
+        const currentPos = getCurrentPosition() || remainingPositions[0];
+        const end = mapData.getById("door", endSpaceSelector.value) || mapData.getById("space", endSpaceSelector.value);
+        const zones = hazardStore.getMappedinZones(mapData, currentNavBuildingId);
+
+        let newDirections = null;
+        if (end && currentPos && !isDestBlocked) {
+          try {
+            const startNav = mapView.createCoordinate(
+              currentPos.latitude,
+              currentPos.longitude,
+              mapData.getById("floor", currentPos.floorOrFloorId || (currentPos as any).floorId)
+            );
+            newDirections = mapData.getDirections(startNav, end, { zones });
+          } catch {
+            newDirections = null;
+          }
+        }
+
+        if (newDirections) {
+          speakInstruction("Hazard detected on route. Recalculating safe route.");
+          showInstructionBanner("⚠️ Hazard detected! Recalculating safe route...");
+          mapView.Navigation.draw(newDirections, {
+            pathOptions: { color: "#188038", nearRadius: 5 },
+          });
+          const newPositions = generatePositionUpdates(mapData, newDirections, {
+            maxJitter: 0,
+            accuracy: 5,
+            updateDistance: 5,
+          });
+          positions = newPositions;
+          fakePositionUpdater.start(newPositions, currentTickSpeedMs || 1000, onFakePositionReceived);
+        } else {
+          fakePositionUpdater.reset();
+          mapView.Navigation.clear();
+          positions = undefined;
+          activeInstructions = [];
+          hideInstructionBanner();
+          speakInstruction("No safe route available. Stop navigation immediately.");
+          alert("NO SAFE ROUTE AVAILABLE — YOUR DESTINATION CANNOT BE REACHED WITHOUT CROSSING A BLOCKED AREA.");
+        }
+      }
+    }
+  });
+
+  updateFavoriteButtonState();
+  switchNavBuilding(currentNavBuildingId, false);
+
+  // ------------------ CAMPUSRESQ EMERGENCY INITIALIZATION ------------------
+  emergencyPanel.init(mapData, mapView, {
+    getCurrentBuildingId: () => currentNavBuildingId,
+    getCurrentStartSpace: () => {
+      if (!startSpaceSelector.value) return undefined;
+      return (
+        mapData.getById("door", startSpaceSelector.value) ||
+        mapData.getById("space", startSpaceSelector.value)
+      );
+    },
+    setDestinationSpace: (targetId: string) => {
+      const door = mapData.getById("door", targetId);
+      const space = mapData.getById("space", targetId);
+      const exit =
+        exitRegistry.getByDoorId(targetId) ||
+        exitRegistry.getBySpaceId(targetId);
+      const displayName = exit
+        ? `${exit.type === "entrance" ? "🚪" : "🚨"} ${exit.name}`
+        : door
+        ? door.name || "Entrance / Exit Door"
+        : space
+        ? space.name
+        : targetId;
+
+      if (endTomSelect && typeof endTomSelect.addOption === "function") {
+        endTomSelect.addOption({ value: targetId, text: displayName });
+        endTomSelect.setValue(targetId);
+      }
+      endSpaceSelector.value = targetId;
+      onEndSpaceChange({ target: { value: targetId } });
+      updateFavoriteButtonState();
+    },
+    setStartSpace: (targetId: string) => {
+      const door = mapData.getById("door", targetId);
+      const space = mapData.getById("space", targetId);
+      const exit =
+        exitRegistry.getByDoorId(targetId) ||
+        exitRegistry.getBySpaceId(targetId);
+      const displayName = exit
+        ? `${exit.type === "entrance" ? "🚪" : "🚨"} ${exit.name}`
+        : door
+        ? door.name || "Entrance / Exit Door"
+        : space
+        ? space.name
+        : targetId;
+
+      if (startTomSelect && typeof startTomSelect.addOption === "function") {
+        startTomSelect.addOption({ value: targetId, text: displayName });
+        startTomSelect.setValue(targetId);
+      }
+      startSpaceSelector.value = targetId;
+      onStartSpaceChange({ target: { value: targetId } });
+    },
+    onRouteGenerated: (directions: any, destinationTarget: any) => {
+      // Draw evacuation route directly without triggering generateButton or starting automatic movements
+      if (mapView?.Navigation) {
+        mapView.Navigation.draw(directions, {
+          pathOptions: {
+            color: "#188038",
+            nearRadius: 5,
+          },
+        });
+      }
+      const targetName = (destinationTarget as any)?.name || "Safe Exit";
+      showInstructionBanner(`🏃 EVACUATION ROUTE: Proceed to ${targetName}`);
+      if (destinationTarget) {
+        const coord =
+          (destinationTarget as any).center ||
+          (directions.coordinates &&
+            directions.coordinates[directions.coordinates.length - 1]);
+        if (coord) {
+          try {
+            mapView.Markers.add(
+              coord,
+              `<div style="font-size: 15px; font-weight: bold; background: white; padding: 4px 8px; border-radius: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.3); border: 2px solid #188038; color: #188038;">🏃 ${targetName}</div>`,
+              { rank: 10 }
+            );
+          } catch {}
+        }
+      }
+    },
+    onClearNavigation: () => {
+      mapView.Navigation.clear();
+      positions = undefined;
+      fakePositionUpdater.reset();
+      mapView.BlueDot?.disable?.();
+      blueDotEnabled = false;
+      hideInstructionBanner();
+      const sidebarEl = document.getElementById("sidebar");
+      if (sidebarEl) sidebarEl.classList.remove("collapsed");
+      emergencyPanel.expand();
+    },
+    onBuildingChanged: (buildingId: string) => {
+      switchNavBuilding(buildingId, false);
+    },
+  });
+
+  const btnOpenSosDashboard = document.getElementById("btnOpenSosDashboard");
+  if (btnOpenSosDashboard) {
+    btnOpenSosDashboard.addEventListener("click", () => {
+      emergencyPanel.setEmergencyMode(true);
+      emergencyPanel.expand();
+      emergencyPanel.showIncidentDashboard();
+    });
+  }
 
   mapView.on("click", async (event) => {
     deleteSpaceMarker();
@@ -2248,6 +2889,13 @@ async function init(mapDataOptions: TGetMapDataOptions) {
 
     console.log("CURRENT FLOOR ID:", id);
     setSelectedFloor(id);
+    const navFloorSelect = document.getElementById(
+      "navFloorSelector"
+    ) as HTMLSelectElement;
+    if (navFloorSelect && navFloorSelect.value !== id) {
+      navFloorSelect.value = id;
+    }
+    emergencyPanel?.renderMapMarkers?.();
   });
 
   // ------------------ RECENTER SUPPORT ------------------

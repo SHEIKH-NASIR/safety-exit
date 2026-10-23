@@ -1,0 +1,3077 @@
+{
+  "fs_6878b1ed316caa000b260be2": {
+    "id": "fs_6878b1ed316caa000b260be2",
+    "name": "office building 1",
+    "floors": {
+      "m_c5bac871ab66226c": {
+        "name": "Level 1",
+        "spaces": [
+          {
+            "id": "s_46b78946d51bd3d8",
+            "name": "Classroom 153",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46510446811705,
+              "longitude": -80.52429260542367,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_2f5024699b10fd70",
+            "name": "Washroom",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46493496560281,
+              "longitude": -80.52427772950452,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_cd0ff000eb0469b2",
+            "name": "Classroom 118",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46490560645084,
+              "longitude": -80.524263118062,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_720999a9913e2248",
+            "name": "Equipment Storage 147",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465065308158856,
+              "longitude": -80.52435172642207,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_1923b9d1f50f13ea",
+            "name": "Girls Locker Room 146",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46504113839565,
+              "longitude": -80.52433227092102,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_b2e7c933db6c1cd3",
+            "name": "Storage 130",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.464918810252705,
+              "longitude": -80.52437868564012,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_f75ec437d23ad52c",
+            "name": "Boys Locker Room 145",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46500890562589,
+              "longitude": -80.52430637374384,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_43fec0e045435c9e",
+            "name": "Principle's Office 109",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46495703968317,
+              "longitude": -80.52427627267373,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_92d68e49e6bd5eab",
+            "name": "Classroom 149",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46511104672507,
+              "longitude": -80.52438847631132,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_44310bc7a4001e9a",
+            "name": "Classroom 38",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46501122418483,
+              "longitude": -80.52453021405643,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_5374c3520cc6bccd",
+            "name": "Office 107",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46496667788979,
+              "longitude": -80.52425361340238,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_d7c674ad0d3b0fd4",
+            "name": "Storage 123",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46488478418275,
+              "longitude": -80.52431229199588,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_968d23a365f36349",
+            "name": "",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46516931134152,
+              "longitude": -80.52419472967622,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_f38a73e9b2fc9caf",
+            "name": "Copier Room 108",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.464943661031626,
+              "longitude": -80.52424566999453,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_0c2e7b34a491e9d8",
+            "name": "Reception 100",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.464998400425436,
+              "longitude": -80.52416389896105,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_d632d2d230f58af4",
+            "name": "Classroom 157",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465120658699604,
+              "longitude": -80.52425442689147,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_2aadbadc382f4c7a",
+            "name": "Music Room 129",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46489669249078,
+              "longitude": -80.52437342990376,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_7f4b18595d92c627",
+            "name": "Classroom 116",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.464929694356655,
+              "longitude": -80.52420620430854,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_898581fc146b9623",
+            "name": "Computer Lab 173",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.4651201506218,
+              "longitude": -80.52416747841697,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_88de0110df9694fe",
+            "name": "Classroom 121",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.464909446242345,
+              "longitude": -80.52433393220849,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_e4b587a08fed8836",
+            "name": "Classroom 151",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465092428365494,
+              "longitude": -80.52432088209859,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_4421b7a3d3ae6445",
+            "name": "Classroom 150",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46512307918723,
+              "longitude": -80.52436004660001,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_e2e162bf0c0dc0f3",
+            "name": "Office 101",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46499074711454,
+              "longitude": -80.52419686986586,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_9cecd06bbfc355f0",
+            "name": "",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.4649001268817,
+              "longitude": -80.52444898171169,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_13ebbb23e8cd07e7",
+            "name": "",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46499721117531,
+              "longitude": -80.52409048292944,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_3ed457eeadbd0d19",
+            "name": "Classroom 39",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46502727290707,
+              "longitude": -80.52454310835809,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_e1eada9558fe3565",
+            "name": "Classroom 152",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.4651350934471,
+              "longitude": -80.5243316598685,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_eee59e79de8ff8fd",
+            "name": "",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46515913102028,
+              "longitude": -80.52427486371725,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_de0996e2315d62e8",
+            "name": "Storage 167",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.4650712410234,
+              "longitude": -80.52421431719243,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_86b83fd2de6f71cd",
+            "name": "Classroom 134",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46494687457315,
+              "longitude": -80.52447851261893,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_5831f746df17a889",
+            "name": "Staff Room 111",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.464922102327904,
+              "longitude": -80.524304030395,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_a9ed68e7e412fec7",
+            "name": "Office 104",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46496310714028,
+              "longitude": -80.52419972361915,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_4be5fb42321e4c07",
+            "name": "Classroom 128",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46489059020507,
+              "longitude": -80.52443336414741,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_e6426f2ff15e980c",
+            "name": "Storage 140",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.4650416889112,
+              "longitude": -80.52456549235113,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_17483611aafb9ad1",
+            "name": "Women's Washroom",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46514184932823,
+              "longitude": -80.52422295632306,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_94fd3bd5264eb6e2",
+            "name": "Classroom 132",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.464914694649444,
+              "longitude": -80.52445265783655,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_13edde8491d42893",
+            "name": "Women's Washroom",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46489630793456,
+              "longitude": -80.52428508812476,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_51928e6ba8d9784f",
+            "name": "Office 148",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465081321450356,
+              "longitude": -80.52436459220507,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_0a4f32188ed98f5e",
+            "name": "Classroom 133",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46493082243762,
+              "longitude": -80.52446561561509,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_e095c2346af1f920",
+            "name": "Classroom",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46487607386846,
+              "longitude": -80.52433288416668,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_f49b82bba57a513c",
+            "name": "",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.464915195798206,
+              "longitude": -80.52436252517602,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_eb6361f562854610",
+            "name": "Mens Washroom",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.464890311429514,
+              "longitude": -80.5242992444348,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_9788fb4b84c9b698",
+            "name": "Storage 126",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46486127872225,
+              "longitude": -80.5244098141573,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_e7647f337f278d42",
+            "name": "",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46484336962649,
+              "longitude": -80.52441016774279,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_6802c855e6c4ff15",
+            "name": "Storage 155",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46511248385548,
+              "longitude": -80.52427325637095,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_1b2d618f1554cca1",
+            "name": "Office 131",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46490657801758,
+              "longitude": -80.52440134332402,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_308f2c30190f0254",
+            "name": "Office 103",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.464982654097284,
+              "longitude": -80.52421598601903,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_be3552bb8438e833",
+            "name": "Classroom 158",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46517072567156,
+              "longitude": -80.5242475334769,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_dc022f35d883cc14",
+            "name": "Back Kitchen 169",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46503694335261,
+              "longitude": -80.5241800864148,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_cad469e6f46fd273",
+            "name": "Classroom 114",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46494175836438,
+              "longitude": -80.52417777899382,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_355cbf29c62b435a",
+            "name": "Classroom 36",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46497912791478,
+              "longitude": -80.52450442642086,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_4f46da3cd5418b26",
+            "name": "Storage 159",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.4651913164735,
+              "longitude": -80.52422392136056,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_5e457ee161100286",
+            "name": "Classroom",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46499520938775,
+              "longitude": -80.52451734701991,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_4ef97e7c3cd22e45",
+            "name": "Office 105",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46497462377108,
+              "longitude": -80.52423494811529,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_09393cdf5bb16346",
+            "name": "Classroom 127",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.464874488278376,
+              "longitude": -80.52442042727726,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_5dece8f7d7e1fa96",
+            "name": "Cold Storage",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465056483371185,
+              "longitude": -80.5241948725639,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_9b582c083add8563",
+            "name": "Meeting Room 110",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46494211200005,
+              "longitude": -80.52431156634626,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_edc9c6326841ae59",
+            "name": "Classroom 161",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465147693811126,
+              "longitude": -80.52418962729632,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_53ed0a4eed1f2edb",
+            "name": "Classroom 154",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465147079793866,
+              "longitude": -80.52430333906076,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_4c1e17dcd2bae39b",
+            "name": "Storage 115",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46494992371541,
+              "longitude": -80.52415848807895,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_3829aaeefdc0fa0d",
+            "name": "Office 102",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.464971036549,
+              "longitude": -80.52418098835277,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_cf95d292987e53d6",
+            "name": "Library 172",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46505335888472,
+              "longitude": -80.52412858861808,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_9d4965e1d802cca5",
+            "name": "",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46506004753029,
+              "longitude": -80.52421423041592,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_f44b4c06f1499116",
+            "name": "Cafeteria",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465049980181135,
+              "longitude": -80.52424982465152,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_e5296dfb88c3925b",
+            "name": "Maintenance 165",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46510872405802,
+              "longitude": -80.52419634211168,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_09892650e4cba55f",
+            "name": "",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46496016856006,
+              "longitude": -80.52423609991152,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_77ad8a0c6bb31807",
+            "name": "",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46505781735892,
+              "longitude": -80.52454127503772,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_b27a0d9ac77708b1",
+            "name": "Stage Storage 141",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46492955440837,
+              "longitude": -80.52441401552748,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_43a429c327df14be",
+            "name": "En's Washroom",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465128607126545,
+              "longitude": -80.52421231698546,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_77ca4d56ba104ea5",
+            "name": "Classroom 135",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46496296961062,
+              "longitude": -80.5244914441002,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_deb1ffabbc53c60f",
+            "name": "Classroom 144",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46498488752671,
+              "longitude": -80.5242870766002,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_9f2ca82bd69f07dd",
+            "name": "Classroom",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46486409220434,
+              "longitude": -80.52436120567803,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_1837bd8106ec7039",
+            "name": "Learning Centre 175",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.464997269943915,
+              "longitude": -80.52406454150929,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_82f555b91394152d",
+            "name": "Office 106",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.464955094143136,
+              "longitude": -80.52421865637235,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_02e1a9d3ad313e51",
+            "name": "Classroom 117",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46491763888199,
+              "longitude": -80.52423468842247,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_98af965a4c05f6c8",
+            "name": "Washroom",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46492804803756,
+              "longitude": -80.52427217165405,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_09723877a0e8efff",
+            "name": "Classroom 132",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46492676068463,
+              "longitude": -80.52434784090346,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_a8a6521104cc8de3",
+            "name": "",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46497568569291,
+              "longitude": -80.52412797071814,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_34d37255902d72cb",
+            "name": "",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465019831649066,
+              "longitude": -80.5244175061246,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          }
+        ],
+        "doors": [
+          {
+            "id": "e_458499a22f52b79d",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46490511280443,
+              "longitude": -80.52428981627261,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_0b2068a7c32c0885",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46515596981368,
+              "longitude": -80.52421375099789,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_2312b6b98742a9aa",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.464897397072406,
+              "longitude": -80.52430801435952,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_441020e77cd93b89",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465166713883214,
+              "longitude": -80.52420133325158,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_2cbde02f86b24c3e",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46493843340513,
+              "longitude": -80.52434575601706,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_d1dcb91138bf59c2",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.4650285514258,
+              "longitude": -80.52414667188089,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_3b780b8cf98e2f49",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46494554181517,
+              "longitude": -80.52427790504323,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_695f3ae3c586850d",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46508765279847,
+              "longitude": -80.52438858168244,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_24315a6497624f49",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46507966825689,
+              "longitude": -80.52420879867695,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_f89eec1db2841e18",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46512519691658,
+              "longitude": -80.52431148849709,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_31f3ba4b3c45f6ca",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46496421604447,
+              "longitude": -80.52421900592009,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_1da03f7b49a29358",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46493271337937,
+              "longitude": -80.52444801337985,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_aeba49e29d1be9f4",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465079799349354,
+              "longitude": -80.52438227186991,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_a83c15bcbb147397",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46492332948466,
+              "longitude": -80.52428399888362,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_09b9f9547f33b7a5",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46504978872265,
+              "longitude": -80.5241950412809,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_9191c15cce59f385",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.464901069586,
+              "longitude": -80.52439602364767,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_09b6d916c5afb60d",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.4649958634286,
+              "longitude": -80.52411119039834,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_cc525eb2f8cd4671",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46496447973563,
+              "longitude": -80.52423361061555,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_c8121a9bdd86804e",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46514899581155,
+              "longitude": -80.52425525747611,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_97e5729191ddffcd",
+            "name": "",
+            "isExterior": true,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465063039485244,
+              "longitude": -80.52454596002332,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_354eedfc78f91da4",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46518208603139,
+              "longitude": -80.52423908197017,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_49a926e37c4bbf3d",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46501341858406,
+              "longitude": -80.52451285560377,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_2d400651c5cca3e8",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46487772626617,
+              "longitude": -80.52431537930283,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_c65938bf225827bb",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46510096661453,
+              "longitude": -80.52416943183808,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_4ec9844e3163e217",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46498562310528,
+              "longitude": -80.5241539189623,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_f3920f33f6c9824e",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46491458082107,
+              "longitude": -80.52440211355506,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_51232b6a25428c30",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.4651148041624,
+              "longitude": -80.52421596966495,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_ce6ad99058b53fb1",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465038605659004,
+              "longitude": -80.52421169255823,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_9ea3e483d251e6ce",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46494130262572,
+              "longitude": -80.52428794774215,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_88bf00d6341e5b50",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465006800321675,
+              "longitude": -80.52408534814116,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_7b2ed051437c5687",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46491666101349,
+              "longitude": -80.52443511620478,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_211cb4fd318e3149",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.464956446332494,
+              "longitude": -80.52425226826182,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_1e889c14bc2c65d6",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46487571088684,
+              "longitude": -80.52435928551571,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_2cac51c9a8c8086d",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.4650592288079,
+              "longitude": -80.52436574458568,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_8dc1e1f5c35b9c30",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465101221937864,
+              "longitude": -80.52436813545067,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_028ed0d5e7b0c285",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.464994100470584,
+              "longitude": -80.52426057812013,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_028320c93106e349",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46500232676902,
+              "longitude": -80.52426718746489,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_e3e0a8ff3a112e9c",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46506523835312,
+              "longitude": -80.52431773327515,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_b66abf21cbd021c7",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46494891485673,
+              "longitude": -80.52446103036573,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_8bd6dad5a224d40e",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46496488754731,
+              "longitude": -80.5244738635422,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_0dcaa61108d62c42",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.464892624844836,
+              "longitude": -80.52441580450727,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_86923e0dc9554376",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.4651262430734,
+              "longitude": -80.52422516016168,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_3b02381792ba1e98",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46492985604222,
+              "longitude": -80.52428924258408,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_20d816d2519ac61e",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46510206023795,
+              "longitude": -80.52434067435888,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_080a399699a38f17",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46493319357491,
+              "longitude": -80.52438391852095,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_9cd0762b685f4b1e",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46497666107315,
+              "longitude": -80.52446877260991,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_d20f22a7e8c0f29b",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46503375891349,
+              "longitude": -80.52451470563108,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_c7c305e65425f2bc",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46505228745255,
+              "longitude": -80.52453732189528,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_90de65b3638fe0fd",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.464922662129844,
+              "longitude": -80.52440854922781,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_efc8dc9fb2a2dedd",
+            "name": "",
+            "isExterior": true,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465172203247036,
+              "longitude": -80.5241883631767,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_4b6ae9455a00d6ce",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46513003984033,
+              "longitude": -80.5242750145421,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_621e98ff5f174281",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46498421377909,
+              "longitude": -80.52417906730508,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_fc269ab36d5d81b3",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465113212163175,
+              "longitude": -80.52433980552335,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_199b86ce0b05cbe5",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.464887683221875,
+              "longitude": -80.52433095987652,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_fcbc05428ca80026",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.464983584502406,
+              "longitude": -80.52430493845259,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_e9c8840e2033fda9",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46494126956357,
+              "longitude": -80.52420438683043,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_de6468d9aab61ae5",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46494331238626,
+              "longitude": -80.52416018619118,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_e446d17c38a10259",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465015248156035,
+              "longitude": -80.52433027982963,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_14059e29a9e93e9a",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.464975673211725,
+              "longitude": -80.52419193542727,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_4c3133b8f065bca7",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46510537305856,
+              "longitude": -80.52422328084216,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_bb44dff66c5eaf00",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.464954939958744,
+              "longitude": -80.52424092303039,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_3f4dfa47c63c6d02",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46510428659772,
+              "longitude": -80.52425996622927,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_846636ba7966c4f7",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46487665045417,
+              "longitude": -80.5244029700008,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_23004e919bb25cda",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.464929367114614,
+              "longitude": -80.52423250938918,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_1f35b5e9b292c9e7",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.464935749631934,
+              "longitude": -80.52429397773368,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_e7fb5f852c6921ac",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.464866043976315,
+              "longitude": -80.52439444830873,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_99ca3e917906653d",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46497219196589,
+              "longitude": -80.52420016076505,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_72f6f77da81eb04c",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465025632369134,
+              "longitude": -80.52418579109424,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_c63faf99c709bd84",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46516020195478,
+              "longitude": -80.5242287800377,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_5cc4ff5fc7fadd34",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46505229052868,
+              "longitude": -80.52418063218168,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_7d621cca039b07a9",
+            "name": "",
+            "isExterior": true,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46495424619816,
+              "longitude": -80.5241228879062,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_39bcdcb0d2aea823",
+            "name": "",
+            "isExterior": true,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46494861034469,
+              "longitude": -80.52413621784146,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_46485189f7a4826f",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46489660863212,
+              "longitude": -80.52433494067714,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_f1ad2696184c72d0",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.4651419700574,
+              "longitude": -80.52423779588118,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_0658bcc34a017e50",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46512089064147,
+              "longitude": -80.52428643323978,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_b1cc057532ec09f6",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.464917514485535,
+              "longitude": -80.5242605142086,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_c350bd2cbd10fe19",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46490993957622,
+              "longitude": -80.5243877981425,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_533664cf02baf2cc",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46493491178772,
+              "longitude": -80.52440139170945,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_a497c88d4feb8345",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465056275003626,
+              "longitude": -80.52422075857855,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_843ab29e02034620",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46498071257068,
+              "longitude": -80.5241952977347,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_743b71191531fff9",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46503857622301,
+              "longitude": -80.52455467140307,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_80c2939753b73ba9",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.464997144191706,
+              "longitude": -80.5244997800021,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_31d22d8e939a27ee",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.4650621693642,
+              "longitude": -80.52420637704934,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_2e1b6784bc813439",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46498109345086,
+              "longitude": -80.5244868841005,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_c11e845ce91d68c9",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46495334480782,
+              "longitude": -80.52417585597095,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_96bd6bb67253e44b",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46513722964929,
+              "longitude": -80.5242830580796,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_e453c074d1897151",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465047932150824,
+              "longitude": -80.52435665308428,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_cf61ecba366ab0f4",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46491108870097,
+              "longitude": -80.52435938554109,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_ac1d7851791e717f",
+            "name": "",
+            "isExterior": true,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46489761103122,
+              "longitude": -80.52445542621993,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_7fba9cf01300bf9c",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46490295883679,
+              "longitude": -80.52444279087382,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_dfd685bf407bc65e",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46511414944055,
+              "longitude": -80.52431235665546,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_8cd769a30a796105",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.4650293147095,
+              "longitude": -80.52452562729619,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_ab51b0e53e96a35b",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46489068121133,
+              "longitude": -80.52439964635785,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_580e37090a2985bb",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46506248779008,
+              "longitude": -80.52422060596865,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_f54435cc1ba3e61c",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.464972677429,
+              "longitude": -80.52421426514607,
+              "floorId": "m_c5bac871ab66226c",
+              "verticalOffset": 0
+            }
+          }
+        ]
+      }
+    }
+  },
+  "fs_6878b4d517d37f000bb0c288": {
+    "id": "fs_6878b4d517d37f000bb0c288",
+    "name": "school",
+    "floors": {
+      "m_f5d3537f84fb2d4f": {
+        "name": "Level 1",
+        "spaces": [
+          {
+            "id": "s_1cd2aa41b64bacc6",
+            "name": "Ada Irestroomi",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46553957114768,
+              "longitude": -80.52400715888008,
+              "floorId": "m_f5d3537f84fb2d4f",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_1bfbb6099c19f84a",
+            "name": "Bath",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465501306728875,
+              "longitude": -80.5239798493215,
+              "floorId": "m_f5d3537f84fb2d4f",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_ba47d59a5e99abe2",
+            "name": "Office 2",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465292991943876,
+              "longitude": -80.52434816550243,
+              "floorId": "m_f5d3537f84fb2d4f",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_91c9bacbd0663d7e",
+            "name": "Office",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46538193979907,
+              "longitude": -80.52412051775403,
+              "floorId": "m_f5d3537f84fb2d4f",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_54517a1da752af00",
+            "name": "Break Room",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.4654490045604,
+              "longitude": -80.52400806483426,
+              "floorId": "m_f5d3537f84fb2d4f",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_b0b18db72b18bfd2",
+            "name": "10 Office 4",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46533278848832,
+              "longitude": -80.52422947871396,
+              "floorId": "m_f5d3537f84fb2d4f",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_fa167fa7052f6148",
+            "name": "Lab",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465601136276895,
+              "longitude": -80.52412292643649,
+              "floorId": "m_f5d3537f84fb2d4f",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_89d1b91a7a4570e5",
+            "name": "10 Office 3",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465520581883275,
+              "longitude": -80.52439034805818,
+              "floorId": "m_f5d3537f84fb2d4f",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_c1f772690d848720",
+            "name": "Hall",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46538075667851,
+              "longitude": -80.52441066770507,
+              "floorId": "m_f5d3537f84fb2d4f",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_2233ee12afe4a799",
+            "name": "Office 5",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46557000643688,
+              "longitude": -80.52428099685116,
+              "floorId": "m_f5d3537f84fb2d4f",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_80e528f2355dd148",
+            "name": "Conference Room",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46545160615894,
+              "longitude": -80.52425578945866,
+              "floorId": "m_f5d3537f84fb2d4f",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_19b47305ca7ab742",
+            "name": "Office 1",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465461964750055,
+              "longitude": -80.524493084923,
+              "floorId": "m_f5d3537f84fb2d4f",
+              "verticalOffset": 0
+            }
+          }
+        ],
+        "doors": [
+          {
+            "id": "e_79cf3a46908e5a4e",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46552336893987,
+              "longitude": -80.52428907594097,
+              "floorId": "m_f5d3537f84fb2d4f",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_1aff501465edb05e",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46542267600502,
+              "longitude": -80.5243205323784,
+              "floorId": "m_f5d3537f84fb2d4f",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_36b51dda911ea5dc",
+            "name": "",
+            "isExterior": true,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46559061341739,
+              "longitude": -80.52400516496573,
+              "floorId": "m_f5d3537f84fb2d4f",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_3aeb6ae9269f4c69",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46543721552987,
+              "longitude": -80.52442404185078,
+              "floorId": "m_f5d3537f84fb2d4f",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_0a759e28c2d2e1d4",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46553579565896,
+              "longitude": -80.52404771671749,
+              "floorId": "m_f5d3537f84fb2d4f",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_67067dd8aa882c4a",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46534989848357,
+              "longitude": -80.52434926533624,
+              "floorId": "m_f5d3537f84fb2d4f",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_928ca26bad0f64d0",
+            "name": "",
+            "isExterior": true,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46548883298608,
+              "longitude": -80.52391800315098,
+              "floorId": "m_f5d3537f84fb2d4f",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_724f06e01c6cf47a",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46548670690159,
+              "longitude": -80.52396485049834,
+              "floorId": "m_f5d3537f84fb2d4f",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_3b1ce80607be0f2d",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46539799208862,
+              "longitude": -80.52418170786257,
+              "floorId": "m_f5d3537f84fb2d4f",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_e826a8048187864d",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46550128343686,
+              "longitude": -80.52423783994223,
+              "floorId": "m_f5d3537f84fb2d4f",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_0d98bfde46adf523",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465504746814176,
+              "longitude": -80.52433034668896,
+              "floorId": "m_f5d3537f84fb2d4f",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_f0fae9418d556b5e",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465537733218,
+              "longitude": -80.52407802337986,
+              "floorId": "m_f5d3537f84fb2d4f",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_8f5fefffbb498307",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465490336457464,
+              "longitude": -80.52409260952327,
+              "floorId": "m_f5d3537f84fb2d4f",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_57381f58ecee91f2",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46537937501378,
+              "longitude": -80.5242229811805,
+              "floorId": "m_f5d3537f84fb2d4f",
+              "verticalOffset": 0
+            }
+          }
+        ]
+      }
+    }
+  },
+  "fs_687ce890e964ae000bd1b0e2": {
+    "id": "fs_687ce890e964ae000bd1b0e2",
+    "name": "Waterloo ON",
+    "floors": {
+      "m_f7ad6268bf946916": {
+        "name": "Level 1",
+        "spaces": [
+          {
+            "id": "s_1c5c1ac7f32c301d",
+            "name": "Bed Room",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46530063249334,
+              "longitude": -80.52385884239723,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_f79eee9b650a6724",
+            "name": "",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46532735228786,
+              "longitude": -80.52397074668104,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_1bd56dc370bfdc39",
+            "name": "Kitchen",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46534239254393,
+              "longitude": -80.52386592666348,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_d64027c4453aec65",
+            "name": "Bed Room",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465275701031324,
+              "longitude": -80.52406753816096,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_f36a96f33c8d7d3b",
+            "name": "Bed Room",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46526744650037,
+              "longitude": -80.5237782935253,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_59be45dde8037622",
+            "name": "Toiletibath D",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46536628087117,
+              "longitude": -80.52384837930973,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_630204e6895cc43e",
+            "name": "Bed Room",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46529975842146,
+              "longitude": -80.52400723134282,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_731f9a9fce5a6e9b",
+            "name": "Hoilet",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46536081380215,
+              "longitude": -80.52388721784678,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_82d0392484480e85",
+            "name": "Kitchen",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46530762305989,
+              "longitude": -80.52395610941491,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_47bca053fd7aa04c",
+            "name": "Kitchen WI",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46526198929305,
+              "longitude": -80.5239471283193,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_4606b9b98c4195be",
+            "name": "Dwi",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46517086879366,
+              "longitude": -80.52400790189138,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_2698a8591d4266b2",
+            "name": "Bed Room",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46533391787275,
+              "longitude": -80.52392152498558,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_2f54c014e3f6e989",
+            "name": "",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46526831257169,
+              "longitude": -80.52399795504164,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_04d941867e50bdbf",
+            "name": "Court Yard",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46532162369385,
+              "longitude": -80.52380569889111,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_b31a4161f074c1dc",
+            "name": "LOBBY",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46523743093452,
+              "longitude": -80.52387903231691,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_9d3960c7670334c8",
+            "name": "Dwi",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46526028133754,
+              "longitude": -80.52411089538916,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_95337c7ad3ab4cdf",
+            "name": "Drawing Room",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46518926022385,
+              "longitude": -80.52395985110496,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_d694d105cae021b5",
+            "name": "Porch",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46522345078183,
+              "longitude": -80.52401703681478,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          }
+        ],
+        "doors": [
+          {
+            "id": "e_d91dc2e89bf6e0c7",
+            "name": "",
+            "isExterior": true,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46519327891893,
+              "longitude": -80.52407012782521,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_0be78d44249c769e",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465307099104926,
+              "longitude": -80.52392427511015,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_ae3282da063f5a53",
+            "name": "",
+            "isExterior": true,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46533600714201,
+              "longitude": -80.52378630072315,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_b8bce5d034488984",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465268437423944,
+              "longitude": -80.52385717551158,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_f319da1273824819",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46523295624458,
+              "longitude": -80.52406074530211,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_c6494ab63e502f7c",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46523272788147,
+              "longitude": -80.52395038606974,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_bf02ba276d30cfaa",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46531800740056,
+              "longitude": -80.52398291103259,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_a414af5a7a5782a7",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46526203168514,
+              "longitude": -80.52403922675946,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_778dea152e018469",
+            "name": "",
+            "isExterior": true,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465204121539145,
+              "longitude": -80.52407703285937,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_d919bf179784a8d4",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46529987536963,
+              "longitude": -80.52377951267671,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_15212b73237f11f0",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465265409813014,
+              "longitude": -80.5238223315821,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_55005568ca2e7f37",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465272849727725,
+              "longitude": -80.52401179178159,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_77bf05825de6f540",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46534591019892,
+              "longitude": -80.5238258814876,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_0fb5dfe39dab23de",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465351086950626,
+              "longitude": -80.52389932265184,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_6ae54ac88e40c93d",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465217311464215,
+              "longitude": -80.52393860856259,
+              "floorId": "m_f7ad6268bf946916",
+              "verticalOffset": 0
+            }
+          }
+        ]
+      },
+      "m_0cabb66d2b13d0d3": {
+        "name": "Level 2",
+        "spaces": [
+          {
+            "id": "s_fd13e2a579bf50b4",
+            "name": "Court Yard",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465320508271994,
+              "longitude": -80.52380612133095,
+              "floorId": "m_0cabb66d2b13d0d3",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_2cc9c29efa347bf4",
+            "name": "Lobby",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465236315513074,
+              "longitude": -80.52387945475506,
+              "floorId": "m_0cabb66d2b13d0d3",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_abee0949022520c0",
+            "name": "Bed Room",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46526633107878,
+              "longitude": -80.52377871596579,
+              "floorId": "m_0cabb66d2b13d0d3",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_3d86110892551d66",
+            "name": "Kitchen",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46534127712197,
+              "longitude": -80.52386634910191,
+              "floorId": "m_0cabb66d2b13d0d3",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_c2a43675be363901",
+            "name": "Kitchen",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.4653065076381,
+              "longitude": -80.52395653185123,
+              "floorId": "m_0cabb66d2b13d0d3",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_7c0ed8512fa58d99",
+            "name": "Hoilet",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46535969838009,
+              "longitude": -80.52388764028471,
+              "floorId": "m_0cabb66d2b13d0d3",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_3c15232f7421635d",
+            "name": "Bed Room",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465298642999706,
+              "longitude": -80.52400765377794,
+              "floorId": "m_0cabb66d2b13d0d3",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_65cdd1636db5b800",
+            "name": "Dwi",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465259165916,
+              "longitude": -80.52411131782183,
+              "floorId": "m_0cabb66d2b13d0d3",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_23611b724b6ccb81",
+            "name": "Bed Room",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46527458560969,
+              "longitude": -80.52406796059465,
+              "floorId": "m_0cabb66d2b13d0d3",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_0aaa79b884286357",
+            "name": "H",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465326236865955,
+              "longitude": -80.52397116911702,
+              "floorId": "m_0cabb66d2b13d0d3",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_ddff065582fb239c",
+            "name": "4",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46526719715009,
+              "longitude": -80.52399837747697,
+              "floorId": "m_0cabb66d2b13d0d3",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_79f8639727957dc0",
+            "name": "Kitchen WI",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465260873871486,
+              "longitude": -80.52394755075584,
+              "floorId": "m_0cabb66d2b13d0d3",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_1a91bb56b95913da",
+            "name": "Dwi",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46516975337257,
+              "longitude": -80.52400832432647,
+              "floorId": "m_0cabb66d2b13d0d3",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_2db1bad4e015788f",
+            "name": "Bed Room",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465299517071585,
+              "longitude": -80.52385926483583,
+              "floorId": "m_0cabb66d2b13d0d3",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_8ac9b0b6e4f04e71",
+            "name": "Toiletibath D",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465365165449086,
+              "longitude": -80.52384880174858,
+              "floorId": "m_0cabb66d2b13d0d3",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_d1422970b827de90",
+            "name": "Bed Room",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465332802450824,
+              "longitude": -80.52392194742272,
+              "floorId": "m_0cabb66d2b13d0d3",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_dfefe36295089d77",
+            "name": "Porch",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46522233541699,
+              "longitude": -80.52401746259719,
+              "floorId": "m_0cabb66d2b13d0d3",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "s_10dbd43b6c757455",
+            "name": "Drawing Room",
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.4651881474716,
+              "longitude": -80.52396027315426,
+              "floorId": "m_0cabb66d2b13d0d3",
+              "verticalOffset": 0
+            }
+          }
+        ],
+        "doors": [
+          {
+            "id": "e_1915ad620f2741e9",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46531689197872,
+              "longitude": -80.5239833334683,
+              "floorId": "m_0cabb66d2b13d0d3",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_bf7e51698f12e219",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46529875994788,
+              "longitude": -80.52377993511715,
+              "floorId": "m_0cabb66d2b13d0d3",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_32db6f341426d49c",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465305983683145,
+              "longitude": -80.52392469754722,
+              "floorId": "m_0cabb66d2b13d0d3",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_bd8a33c0c0af9e3f",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465260916263595,
+              "longitude": -80.52403964919378,
+              "floorId": "m_0cabb66d2b13d0d3",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_372b4b90e2063da2",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46523286063213,
+              "longitude": -80.52405864846676,
+              "floorId": "m_0cabb66d2b13d0d3",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_c9db1cfd3266d1c0",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46534997152861,
+              "longitude": -80.52389974508951,
+              "floorId": "m_0cabb66d2b13d0d3",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_571f46b1aead98f7",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46534479477694,
+              "longitude": -80.52382630392697,
+              "floorId": "m_0cabb66d2b13d0d3",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_052d4635925e5aa6",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.4652717343061,
+              "longitude": -80.5240122142166,
+              "floorId": "m_0cabb66d2b13d0d3",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_c132085462698d2e",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465232582348925,
+              "longitude": -80.52395154946123,
+              "floorId": "m_0cabb66d2b13d0d3",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_588533f6a47fc45c",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.46526732200237,
+              "longitude": -80.52385759795021,
+              "floorId": "m_0cabb66d2b13d0d3",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_fdb0942bdd713c5d",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465264294391446,
+              "longitude": -80.52382275402158,
+              "floorId": "m_0cabb66d2b13d0d3",
+              "verticalOffset": 0
+            }
+          },
+          {
+            "id": "e_5532d3383b09d3e8",
+            "name": "",
+            "isExterior": false,
+            "center": {
+              "__type": "coordinate",
+              "latitude": 43.465216244310554,
+              "longitude": -80.5239390678739,
+              "floorId": "m_0cabb66d2b13d0d3",
+              "verticalOffset": 0
+            }
+          }
+        ]
+      }
+    }
+  }
+}

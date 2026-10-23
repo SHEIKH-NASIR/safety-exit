@@ -284,7 +284,37 @@
           width: 340px;
           border-radius: var(--radius-lg);
           padding: 12px 18px 18px;
+          transition: transform 0.28s ease, opacity 0.28s ease;
         }
+        #sidebar.collapsed {
+          transform: translateX(calc(-100% - 24px));
+          opacity: 0;
+          pointer-events: none;
+        }
+      }
+
+      /* Floating sidebar toggle button */
+      #sidebarToggleBtn {
+        position: fixed;
+        top: calc(12px + var(--safe-top));
+        left: 200px;
+        z-index: 21;
+        background: var(--surface);
+        color: var(--text);
+        border: none;
+        border-radius: 999px;
+        padding: 10px 14px;
+        font-size: 13px;
+        font-weight: 600;
+        box-shadow: var(--shadow);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s ease;
+      }
+      #sidebarToggleBtn:hover {
+        background: var(--surface-muted);
       }
 
       /* =========================================================
@@ -299,6 +329,14 @@
           font-size: 13px;
         }
 
+        #sidebarToggleBtn {
+          left: auto;
+          right: 180px;
+          top: 10px;
+          font-size: 11px;
+          padding: 8px 10px;
+        }
+
         #sidebar {
           position: fixed;
           left: 0;
@@ -309,10 +347,15 @@
           border-radius: var(--radius-lg) var(--radius-lg) 0 0;
           padding: 8px 16px calc(16px + var(--safe-bottom));
           transform: translateY(calc(100% - 132px));
-          transition: transform 0.28s ease;
+          transition: transform 0.28s ease, opacity 0.28s ease;
         }
         #sidebar.expanded {
           transform: translateY(0);
+        }
+        #sidebar.collapsed {
+          transform: translateY(100%) !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
         }
 
         .sheet-handle {
@@ -368,6 +411,10 @@
 
       <div class="topbar"><span class="dot"></span> Blue Dot Navigator</div>
 
+      <button id="sidebarToggleBtn" title="Toggle Navigation Panel">
+        <span>☰</span> <span>Places & Routes</span>
+      </button>
+
       <select id="floorSelector"></select>
 
       <!--
@@ -385,15 +432,42 @@
 
         <h1>Blue Dot Location Generator</h1>
 
-        <!-- Always-visible: pick a route -->
+        <!-- Always-visible: pick a route (Step 1 to Step 4 building-wise navigation) -->
         <div class="route-picker">
+          <!-- Step 1: Select Building -->
+          <div class="field-group" style="margin-bottom: 6px;">
+            <label for="navBuildingSelector" style="font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 4px;">
+              <span>🏢</span> <span>1. Campus Building</span>
+            </label>
+            <select id="navBuildingSelector" style="width: 100%; padding: 8px 10px; font-weight: 600; border-radius: 8px; border: 1px solid var(--border); background: var(--surface);">
+              <option value="fs_6878b4d517d37f000bb0c288">Main Building / School</option>
+              <option value="fs_6878b1ed316caa000b260be2" selected>Office Building 1</option>
+              <option value="fs_687ce890e964ae000bd1b0e2">Waterloo Venue</option>
+            </select>
+          </div>
+
+          <!-- Step 2: Select Floor -->
+          <div class="field-group" id="navFloorFieldGroup" style="margin-bottom: 6px;">
+            <label for="navFloorSelector" style="font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 4px;">
+              <span>📶</span> <span>2. Building Floor</span>
+            </label>
+            <select id="navFloorSelector" style="width: 100%; padding: 8px 10px; font-weight: 600; border-radius: 8px; border: 1px solid var(--border); background: var(--surface);"></select>
+          </div>
+
+          <!-- Step 3: Starting Location -->
           <div class="field-group">
-            <label for="startCategory">From</label>
+            <label for="startCategory" style="font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 4px;">
+              <span>📍</span> <span>3. Starting Location (From)</span>
+            </label>
             <select id="startCategory"></select>
             <select id="startSpace"></select>
           </div>
+
+          <!-- Step 4: Destination -->
           <div class="field-group">
-            <label for="endCategory">To</label>
+            <label for="endCategory" style="font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 4px;">
+              <span>🎯</span> <span>4. Destination (To)</span>
+            </label>
             <select id="endCategory"></select>
             <select id="endSpace"></select>
             <!-- ✅ NEW: the "Save as favorite" button (#favoriteButton) is
@@ -407,18 +481,11 @@
           <button id="generate">Generate</button>
           <button id="reset">Reset</button>
           <button id="download">Download</button>
-          <!--
-            ✅ REMOVED: <button id="recenterButton">🎯 Recenter</button>
-            used to be here. Having it in the HTML meant index.ts's
-            "if (!recenterButton) { ...create floating one... }" check
-            found this one already existing and reused IT instead of
-            creating the floating map-corner button — so the real logic
-            was stuck inside the sidebar/drawer the whole time, exactly
-            the problem you wanted fixed. Deleting it here lets index.ts
-            create its own floating button, appended straight to <body>,
-            always visible over the map regardless of sidebar state.
-          -->
         </div>
+
+        <button id="btnOpenSosDashboard" type="button" style="width: 100%; margin: 8px 0; background: linear-gradient(135deg, #d93025, #b71c1c); color: white; border: none; border-radius: var(--radius-md); font-weight: 700; font-size: 14px; padding: 12px 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(217,48,37,0.35); transition: transform 0.15s ease;">
+          <span>🚨</span> <span>SOS & Emergency Safety Hub</span>
+        </button>
 
         <!-- Advanced / dev-only settings, tucked away and closed
              by default so a normal user never sees them. -->
@@ -542,21 +609,38 @@
         var sidebar = document.getElementById("sidebar");
         var handle = document.getElementById("sheetHandle");
         var generateBtn = document.getElementById("generate");
+        var resetBtn = document.getElementById("reset");
+        var sidebarToggleBtn = document.getElementById("sidebarToggleBtn");
 
         function toggleSheet() {
           sidebar.classList.toggle("expanded");
         }
 
-        handle.addEventListener("click", toggleSheet);
+        if (handle) {
+          handle.addEventListener("click", toggleSheet);
+        }
 
-        // Auto-collapse the sheet after Generate so the map opens up —
-        // deferred with setTimeout so main.ts's own click handler (which
-        // builds the route) runs first, uninterrupted.
-        generateBtn.addEventListener("click", function () {
-          setTimeout(function () {
-            sidebar.classList.remove("expanded");
-          }, 150);
-        });
+        if (sidebarToggleBtn) {
+          sidebarToggleBtn.addEventListener("click", function () {
+            if (window.innerWidth < 900) {
+              if (sidebar.classList.contains("collapsed")) {
+                sidebar.classList.remove("collapsed");
+                sidebar.classList.add("expanded");
+              } else {
+                sidebar.classList.toggle("expanded");
+              }
+            } else {
+              sidebar.classList.toggle("collapsed");
+            }
+          });
+        }
+
+        // Restore on reset
+        if (resetBtn) {
+          resetBtn.addEventListener("click", function () {
+            sidebar.classList.remove("collapsed");
+          });
+        }
       })();
     </script>
   </body>

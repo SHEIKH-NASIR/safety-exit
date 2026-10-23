@@ -1,0 +1,174 @@
+<USER_REQUEST>
+# CRITICAL FIX: RESTORE CAMPUSRESQ'S ORIGINAL FUNCTIONALITY WITHOUT REMOVING NEW FEATURES
+
+Bro, the latest changes have broken the existing CampusResQ application. Before these changes, clicking **Generate Route** displayed the route on the map and showed the route instructions. Now, clicking Generate Route shows no path and no route instructions. Also, the SOS dashboard/panel needed to test SOS features is missing or not accessible.
+
+**I did NOT ask you to remove existing functionality. I asked you to preserve the original working application and ONLY add the changes I requested.**
+
+## 1. FIRST: INSPECT THE CURRENT PROJECT AND FIND THE REGRESSIONS
+
+Inspect the existing source code and identify exactly which recent changes caused:
+
+- Generate Route to stop displaying the route on the map.
+- Turn-by-turn navigation instructions to disappear.
+- The route summary or other route-related UI to stop updating.
+- The SOS dashboard/panel to disappear or become inaccessible.
+- Any existing SOS controls, responder dashboard features, or testing workflows to stop working.
+
+Pay special attention to these files and their interactions:
+
+- `src/index.ts`
+- `src/emergency/safeRouteService.ts`
+- `src/emergency/hazardStore.ts`
+- `src/emergency/emergencyPanel.ts`
+- `src/emergency/incidentService.ts`
+- `src/emergency/types.ts`
+- `src/emergency/exitRegistry.ts`
+- `index.html`
+
+Also inspect any other files involved in route generation, navigation instructions, SOS dashboard rendering, and event handlers.
+
+**Do not assume the issue is only visual. Trace the complete event flow from clicking Generate Route through route calculation, map rendering, route instructions, and navigation state.**
+
+## 2. RESTORE NORMAL ROUTE GENERATION
+
+Restore the original working Generate Route behavior.
+
+When the user selects a valid Start and Destination and clicks Generate Route:
+
+1. Calculate a route using the actual Mappedin SDK and the selected venue/floor context.
+2. Display the generated route on the map as before.
+3. Display the route instructions and turn-by-turn directions.
+4. Update the route summary, distance, estimated duration, and other existing route UI where applicable.
+5. Restore the original navigation workflow and any associated controls.
+6. Handle invalid selections or genuinely unreachable destinations with a clear error message.
+
+The safe-routing changes must NOT disable normal routing when there are no active hazards.
+
+**Important:** Do not permanently disable route generation, route rendering, instruction rendering, navigation callbacks, or route-state updates as a workaround for the unwanted automatic navigation bug.
+
+Find and fix the actual regression. Preserve the original user-triggered Generate Route workflow.
+
+## 3. RESTORE THE SOS DASHBOARD AND MAKE IT TESTABLE
+
+Restore the SOS dashboard/panel that was part of the original application or that was intended to be implemented.
+
+I need a working frontend where I can actually test the SOS features. Do not merely keep backend functions or hidden event handlers.
+
+Verify that the dashboard/panel is visible or accessible through its intended navigation, button, tab, or emergency control.
+
+Preserve and restore all applicable existing SOS functionality, including:
+
+- Triggering an SOS alert.
+- Showing the incident status and relevant incident details.
+- Displaying the user's location when available.
+- Showing or updating live location when that functionality already exists.
+- Showing emergency contacts and alert-delivery status where implemented.
+- Displaying active incidents in the responder/emergency dashboard.
+- Testing the hazard-selection preview and Activate Hazard workflow.
+- Clearing hazards individually.
+- Testing the available emergency and responder workflows from the frontend.
+
+If the SOS dashboard was removed, restore its previous implementation from the project history, backup, or existing source files where available. If it was never fully implemented, implement the missing UI using the project's existing architecture without replacing unrelated components.
+
+Do not invent successful SMS, email, GPS, or responder delivery. Show the real status or a clearly labelled demo/test status.
+
+## 4. KEEP THE REQUESTED HAZARD PREVIEW AND ACTIVATION FEATURES
+
+Retain these requested additions:
+
+- Selecting a mapped room, corridor, door/exit, floor, or other supported area immediately displays a red preview before activation.
+- Clicking Activate Hazard/Block Location converts that preview into a confirmed active hazard.
+- Active hazards remain visible when switching floors and buildings and returning to the affected area.
+- Multiple hazards can remain active simultaneously.
+- Clearing one hazard must not clear other hazards.
+- Clearing a temporary preview must never clear an already active hazard.
+- The selected building and floor must be respected when displaying and managing hazards.
+
+Use actual mapped geometry and the real SDK wherever supported. Do not rely solely on red visual overlays to claim that an area is blocked for routing.
+
+## 5. FIX SAFE ROUTING WITHOUT BREAKING NORMAL ROUTING
+
+The routing rules must be:
+
+**No active hazards:** Generate Route behaves exactly as it did before these changes.
+
+**Active hazards exist:** Normal Generate Route must calculate a safe alternative that avoids all applicable active hazards.
+
+**No safe route exists:** Show this exact message:
+
+"NO SAFE ROUTE AVAILABLE — YOUR DESTINATION CANNOT BE REACHED WITHOUT CROSSING A BLOCKED AREA."
+
+Never silently display an unsafe route as a successful safe route.
+
+If a hazard is activated while navigation is already in progress, stop unsafe guidance and reroute around the hazard if a valid safe route exists. Otherwise, stop navigation and show the no-safe-route message.
+
+Do not break the original route instructions, route summary, map rendering, navigation controls, or other existing functionality when implementing hazard avoidance.
+
+## 6. PREVENT UNWANTED AUTOMATIC NAVIGATION
+
+Fix the original bug where activating a hazard unexpectedly starts normal navigation.
+
+Clicking Activate Hazard/Block Location must ONLY activate the selected hazard. It must not automatically click Generate Route, start a new normal route, or begin navigation because the current Start and Destination happen to be selected.
+
+However, clicking the actual Generate Route button must continue to work normally.
+
+Do not remove all route recalculation or navigation callbacks just to prevent unwanted automatic navigation. Separate explicit user actions from hazard-state changes and handle each event correctly.
+
+## 7. PRESERVE THE EXISTING APPLICATION
+
+This is a targeted bug-fix task, NOT a redesign or rewrite.
+
+- Keep the existing UI and design.
+- Keep the existing building and floor selectors.
+- Keep normal route generation and route visualization.
+- Keep turn-by-turn directions and route summaries.
+- Keep nearest-safe-exit functionality.
+- Keep SOS and incident management.
+- Keep the responder dashboard.
+- Keep camera and Blue Dot features.
+- Keep voice guidance.
+- Keep existing working controls, event listeners, and SDK integrations.
+- Keep the current Mappedin SDK version and existing project architecture unless a change is strictly necessary.
+- Do not remove working code or replace real SDK behavior with mock implementations.
+- Do not introduce duplicate event handlers, conflicting state stores, or duplicate dashboard elements.
+
+If any existing feature is failing, trace the cause and fix it instead of hiding the feature or removing its callback.
+
+## 8. TEST THE ACTUAL APPLICATION BEFORE FINISHING
+
+Run the build and test the application in the browser using the actual Mappedin integration and venue data.
+
+Verify all of the following:
+
+1. With no hazards active, selecting Start and Destination and clicking Generate Route displays the route and instructions.
+2. Normal route generation continues to work after activating and clearing hazards.
+3. With an active hazard intersecting a route, Generate Route produces a genuinely safe alternative.
+4. When no safe path exists, the exact no-safe-route message is displayed and unsafe guidance is stopped.
+5. Clicking Block Location does not automatically trigger normal navigation.
+6. Multiple active hazards persist independently across floor and building switches.
+7. Clearing one hazard leaves all other hazards active.
+8. The SOS dashboard/panel is accessible and its testable controls work.
+9. SOS activation creates or updates the expected incident state and displays the result in the appropriate dashboard.
+10. Existing route, navigation, emergency, and responder controls remain usable.
+11. No JavaScript runtime errors or broken event handlers prevent the application from working.
+
+Run the existing tests and build, but do not treat mocked tests or a successful build alone as proof that the browser functionality works.
+
+## 9. FINAL REPORT
+
+After fixing the regressions, tell me:
+
+- The exact root cause of the missing route and instructions.
+- The exact root cause of the missing/inaccessible SOS dashboard.
+- Which files you changed and why.
+- Which original features were restored.
+- Which requested additions remain implemented.
+- The actual tests performed and their results.
+- Any feature that still needs credentials, real hardware, or external integration to work.
+
+**FINAL REQUIREMENT: Restore the application to its original working behavior first, then retain the requested hazard and safe-routing additions. Do not sacrifice existing functionality to implement a new feature. Do not claim something works unless you have actually verified it.**
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-10-23T05:20:57+05:30.
+</ADDITIONAL_METADATA>

@@ -33,6 +33,13 @@ export class DynamicPositionUpdater {
   }
 
   /**
+   * Returns true if simulated position updates are actively running
+   */
+  isRunning(): boolean {
+    return this.interval !== null;
+  }
+
+  /**
    * Start a new set of position updates
    */
   start(
