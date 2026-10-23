@@ -157,10 +157,10 @@ CampusResQ supports full dual deployment on Render:
 ---
 
 ## 🔒 Security & Privacy Architecture
-- **Server-Side Token Authentication**: In production, private API keys (`MAPPEDIN_KEY`, `MAPPEDIN_SECRET`) are kept strictly on the backend (`safety-exit-api`). The client requests short-lived, ephemeral JWT tokens (`/api/mappedin-token`) with zero client-side secret leakage.
-- **Client Fallback Resilience**: If the auth backend is unavailable or cold-starting, the frontend seamlessly falls back to public demo credentials so map navigation and evacuation routing are never interrupted.
+- **Zero Frontend Secret Leakage**: Private API credentials (`MAPPEDIN_KEY`, `MAPPEDIN_SECRET`) and private input fields have been completely removed from frontend HTML and client bundles. Private keys are never compiled into or transmitted by browser JavaScript.
+- **Server-Side Token Authentication**: In production, private API keys (`MAPPEDIN_KEY`, `MAPPEDIN_SECRET`) are kept strictly on the backend (`safety-exit-api`). The client requests short-lived, ephemeral JWT tokens (`/api/mappedin-token`) with zero client-side secret exposure.
+- **Client Fallback Resilience**: If the auth backend is unavailable or cold-starting, the frontend seamlessly falls back to public trial demo credentials for the public demo venue so map navigation and evacuation routing are never interrupted.
 - **Git Protection**: Sensitive configuration files (`.env`, `.env.*`), private keys, build caches (`.parcel-cache-build/`), and temporary scratch logs are strictly excluded via `.gitignore`.
-- **Venue Settings Masking**: Credential inputs inside the collapsible Venue Settings panel are masked (`type="password"`) to prevent accidental plaintext disclosure during presentations and screen sharing.
 
 ---
 

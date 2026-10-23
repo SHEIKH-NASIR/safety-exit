@@ -48,13 +48,13 @@ const floorMap: Record<string, number> = {
   m_0cabb66d2b13d0d3: 1, // First floor
 };
 
-// Mappedin credentials resolution: prioritize environment variables (MAPPEDIN_KEY, MAPPEDIN_SECRET, MAPPEDIN_MAP_ID)
-// with safe fallback to public demo venue trial credentials
-// See https://developer.mappedin.com/docs/demo-keys-and-maps
-const DEMO_KEY = (process.env.MAPPEDIN_KEY as string) || "mik_LunzGF0BwzLu5wKnO569c07af";
-const DEMO_SECRET = (process.env.MAPPEDIN_SECRET as string) || "mis_Tu9IawAmFN1TK6h4HekLxdhpwCflxEx8WGTNfHa80FQ8b8a100f";
-const DEMO_MAP_ID = (process.env.MAPPEDIN_MAP_ID as string) || "6878b313316caa000b260be4";
-const DEMO_ENV = (process.env.MAPPEDIN_ENV as "us" | "eu") || "us";
+// Official public Mappedin trial demo venue and keys for open-source reference
+// (See https://developer.mappedin.com/docs/demo-keys-and-maps)
+const PUBLIC_DEMO_MAP_ID = "6878b313316caa000b260be4";
+const PUBLIC_DEMO_KEY = "mik_LunzGF0BwzLu5wKnO569c07af";
+const PUBLIC_DEMO_SECRET = "mis_Tu9IawAmFN1TK6h4HekLxdhpwCflxEx8WGTNfHa80FQ8b8a100f";
+const DEFAULT_MAP_ID = (process.env.MAPPEDIN_MAP_ID as string) || PUBLIC_DEMO_MAP_ID;
+const DEFAULT_ENV = (process.env.MAPPEDIN_ENV as "us" | "eu") || "us";
 
 let mapData: MapData;
 let mapView: MapView;
@@ -119,18 +119,43 @@ const crossingToastShownFor = new Set<number>();
 
 const fakePositionUpdater = new DynamicPositionUpdater();
 
+function showAuthErrorToast(msg: string) {
+  let errEl = document.getElementById("auth-error-banner");
+  if (!errEl) {
+    errEl = document.createElement("div");
+    errEl.id = "auth-error-banner";
+    errEl.style.position = "fixed";
+    errEl.style.top = "20px";
+    errEl.style.left = "50%";
+    errEl.style.transform = "translateX(-50%)";
+    errEl.style.background = "#d93025";
+    errEl.style.color = "#ffffff";
+    errEl.style.padding = "14px 22px";
+    errEl.style.borderRadius = "8px";
+    errEl.style.boxShadow = "0 6px 18px rgba(0,0,0,0.35)";
+    errEl.style.zIndex = "999999";
+    errEl.style.fontWeight = "600";
+    errEl.style.maxWidth = "90vw";
+    errEl.style.textAlign = "center";
+    document.body.appendChild(errEl);
+  }
+  errEl.textContent = msg;
+  errEl.style.display = "block";
+}
+
+function hideAuthErrorToast() {
+  const errEl = document.getElementById("auth-error-banner");
+  if (errEl) errEl.style.display = "none";
+}
+
 /**
  * Get UI elements
  */
 
-const mapIdInput = document.getElementById("mapId")! as HTMLInputElement;
-const clientIdInput = document.getElementById("key")! as HTMLInputElement;
-const clientSecretInput = document.getElementById(
-  "secret"
-)! as HTMLInputElement;
+const mapIdInput = document.getElementById("mapId") as HTMLInputElement | null;
 const environmentSelect = document.getElementById(
   "environment"
-)! as HTMLSelectElement;
+) as HTMLSelectElement | null;
 
 const loadMapButton = document.getElementById("loadMap")! as HTMLButtonElement;
 
@@ -162,77 +187,70 @@ const destinationLocationColor = document.getElementById(
   "destinationLocationColor"
 ) as HTMLInputElement;
 
-const getMapDataOptionsWithFallbacks = (): TGetMapDataOptions => {
-  const mapId = (mapIdInput && mapIdInput.value.trim() !== "") ? mapIdInput.value.trim() : DEMO_MAP_ID;
-  const key = (clientIdInput && clientIdInput.value.trim() !== "") ? clientIdInput.value.trim() : DEMO_KEY;
-  const secret = (clientSecretInput && clientSecretInput.value.trim() !== "") ? clientSecretInput.value.trim() : DEMO_SECRET;
-  const environment = (environmentSelect && environmentSelect.value !== "") ? (environmentSelect.value as "us" | "eu") : DEMO_ENV;
-
-  // Initialize input values for transparency in Venue Settings
-  if (mapIdInput && !mapIdInput.value) mapIdInput.value = mapId;
-  if (clientIdInput && !clientIdInput.value) clientIdInput.value = key;
-  if (clientSecretInput && !clientSecretInput.value) clientSecretInput.value = secret;
-  if (environmentSelect && !environmentSelect.value) environmentSelect.value = environment;
-
-  const options: TGetMapDataOptions = {
-    mapId,
-    key,
-    secret,
-    environment,
-  };
-  return options;
-};
-
 /**
- * Resolves map data options with prioritized token authentication:
- * 1. If explicit credentials are typed into Venue Settings by the user, honors them.
- * 2. If a backend auth endpoint (MAPPEDIN_AUTH_URL) is configured, retrieves a short-lived
- *    Mappedin accessToken so private credentials remain strictly on the backend.
- * 3. Falls back safely to public demo credentials if no auth service is configured or reachable.
+ * Resolves map data options with token-first authentication:
+ * 1. Checks if a backend auth endpoint (MAPPEDIN_AUTH_URL or /api/mappedin-token) is reachable.
+ * 2. Retrieves a short-lived ephemeral Mappedin accessToken from the backend service.
+ * 3. Falls back to public demo credentials ONLY if the selected map is the public demo venue
+ *    (https://developer.mappedin.com/docs/demo-keys-and-maps).
+ * 4. Never reads or exposes private keys or secrets on the frontend.
  */
 async function resolveMapDataOptions(): Promise<TGetMapDataOptions> {
-  const mapId = (mapIdInput && mapIdInput.value.trim() !== "") ? mapIdInput.value.trim() : DEMO_MAP_ID;
-  const environment = (environmentSelect && environmentSelect.value !== "") ? (environmentSelect.value as "us" | "eu") : DEMO_ENV;
+  const mapId = (mapIdInput && mapIdInput.value.trim() !== "") ? mapIdInput.value.trim() : DEFAULT_MAP_ID;
+  const environment = (environmentSelect && environmentSelect.value !== "") ? (environmentSelect.value as "us" | "eu") : DEFAULT_ENV;
 
-  const customKey = clientIdInput?.value?.trim();
-  const customSecret = clientSecretInput?.value?.trim();
-  // If user typed custom credentials in Venue Settings, use them directly
-  if (customKey && customSecret) {
-    return {
-      mapId,
-      key: customKey,
-      secret: customSecret,
-      environment,
-    };
-  }
+  if (mapIdInput && !mapIdInput.value) mapIdInput.value = mapId;
+  if (environmentSelect && !environmentSelect.value) environmentSelect.value = environment;
 
-  // Attempt token-based authentication via auth service
-  const authUrl =
+  // 1. Attempt token-based authentication via auth service
+  const configuredAuthUrl =
     (process.env.MAPPEDIN_AUTH_URL as string) ||
     (window as any).MAPPEDIN_AUTH_URL;
 
-  if (authUrl) {
+  const candidateUrls: string[] = [];
+  if (configuredAuthUrl) candidateUrls.push(configuredAuthUrl);
+  candidateUrls.push("/api/mappedin-token");
+  if (typeof window !== "undefined" && window.location.hostname === "localhost") {
+    candidateUrls.push("http://localhost:3000/api/mappedin-token");
+  }
+
+  for (const url of candidateUrls) {
     try {
-      const res = await fetch(authUrl, { method: "GET" });
+      const res = await fetch(url, { method: "GET" });
       if (res.ok) {
         const authData = await res.json();
         const token = authData.accessToken || authData.access_token;
         if (token) {
-          console.log("🔒 Map authenticated via secure Mappedin token service");
+          console.log("🔒 Map authenticated via secure Mappedin token service:", url);
+          hideAuthErrorToast();
           return {
-            mapId: authData.mapId || mapId,
+            mapId: (mapIdInput && mapIdInput.value.trim() !== "") ? mapIdInput.value.trim() : (authData.mapId || mapId),
             accessToken: token,
-            environment: (authData.environment as "us" | "eu") || environment,
+            environment: (environmentSelect && environmentSelect.value !== "") ? (environmentSelect.value as "us" | "eu") : ((authData.environment as "us" | "eu") || environment),
           } as TGetMapDataOptions;
         }
       }
-    } catch (err) {
-      console.warn("Mappedin token auth service unreachable, falling back:", err);
+    } catch {
+      // Continue to next candidate URL
     }
   }
 
-  // Fallback to standard credentials
-  return getMapDataOptionsWithFallbacks();
+  // 2. Safe Fallback: only permitted for the official public trial demo venue
+  if (mapId === PUBLIC_DEMO_MAP_ID) {
+    console.log("ℹ️ Using public demo credentials for demo venue:", PUBLIC_DEMO_MAP_ID);
+    hideAuthErrorToast();
+    return {
+      mapId: PUBLIC_DEMO_MAP_ID,
+      key: PUBLIC_DEMO_KEY,
+      secret: PUBLIC_DEMO_SECRET,
+      environment,
+    };
+  }
+
+  // 3. For custom venues without an available backend auth service, notify the user clearly
+  const errorMsg = `Authentication required: Could not retrieve access token from backend auth service for venue "${mapId}". Ensure safety-exit-api is deployed and running.`;
+  showAuthErrorToast(errorMsg);
+  throw new Error(errorMsg);
 }
 
 let startTomSelect: any = null;
@@ -942,26 +960,30 @@ async function loadGlobalModels() {
           return;
         }
 
-        const coord = mapView.createCoordinate(
-          model.latitude,
-          model.longitude,
-          floor
-        );
-        const modelUrl = modelMap[model.modelId];
+        try {
+          const coord = mapView.createCoordinate(
+            model.latitude,
+            model.longitude,
+            floor
+          );
+          const modelUrl = modelMap[model.modelId];
 
-        if (!modelUrl) {
-          console.warn(`Unknown modelId: ${model.modelId}`);
-          return;
+          if (!modelUrl) {
+            console.warn(`Unknown modelId: ${model.modelId}`);
+            return;
+          }
+
+          mapView.Models.add(coord, modelUrl, {
+            rotation: model.rotation || [0, 0, 0],
+            scale: model.scale || [1, 1, 1],
+            verticalOffset: model.verticalOffset || 0,
+            material: {
+              Default: { color: model.color || "#ffffff" },
+            },
+          });
+        } catch (mErr) {
+          console.warn("⚠️ Could not place model coordinate:", model, mErr);
         }
-
-        mapView.Models.add(coord, modelUrl, {
-          rotation: model.rotation || [0, 0, 0],
-          scale: model.scale || [1, 1, 1],
-          verticalOffset: model.verticalOffset || 0,
-          material: {
-            Default: { color: model.color || "#ffffff" },
-          },
-        });
       });
     }
   } catch (err) {
@@ -1520,7 +1542,14 @@ async function init(mapDataOptions: TGetMapDataOptions) {
   let currentTickSpeedMs = 1000;
 
   // Load data
-  mapData = await getMapData(mapDataOptions);
+  try {
+    mapData = await getMapData(mapDataOptions);
+    hideAuthErrorToast();
+  } catch (err: any) {
+    console.error("❌ Failed to load Mappedin map data:", err);
+    showAuthErrorToast(`Map Load Error: ${err?.message || "Failed to load map data."}`);
+    return;
+  }
   console.log("FLOORS:", mapData.getByType("floor"));
 
   const floorToBuilding = buildFloorToBuildingMap(mapData);
@@ -4376,12 +4405,22 @@ async function init(mapDataOptions: TGetMapDataOptions) {
 }
 
 // Load initial venue exactly once
-resolveMapDataOptions().then((options) => {
-  init(options);
-});
+resolveMapDataOptions()
+  .then((options) => {
+    init(options);
+  })
+  .catch((err) => {
+    console.error("Initial map authentication error:", err);
+    showAuthErrorToast(err?.message || "Failed to authenticate map venue.");
+  });
 
 // Load a new venue
 loadMapButton.onclick = async () => {
-  const options = await resolveMapDataOptions();
-  init(options);
+  try {
+    const options = await resolveMapDataOptions();
+    await init(options);
+  } catch (err: any) {
+    console.error("Failed to load map:", err);
+    showAuthErrorToast(err?.message || "Failed to load map.");
+  }
 };
