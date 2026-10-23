@@ -2758,9 +2758,7 @@ async function init(mapDataOptions: TGetMapDataOptions) {
   });
 
   updateFavoriteButtonState();
-  switchNavBuilding(currentNavBuildingId, false);
-
-  // ------------------ CAMPUSRESQ EMERGENCY INITIALIZATION ------------------
+// ------------------ CAMPUSRESQ EMERGENCY INITIALIZATION ------------------
   emergencyPanel.init(mapData, mapView, {
     getCurrentBuildingId: () => currentNavBuildingId,
     getCurrentStartSpace: () => {
@@ -2856,6 +2854,10 @@ async function init(mapDataOptions: TGetMapDataOptions) {
       switchNavBuilding(buildingId, false);
     },
   });
+
+  switchNavBuilding(currentNavBuildingId, false);
+
+  
 
   const btnOpenSosDashboard = document.getElementById("btnOpenSosDashboard");
   if (btnOpenSosDashboard) {

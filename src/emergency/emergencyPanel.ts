@@ -701,6 +701,7 @@ export class EmergencyPanel {
   }
 
   private getActiveBlockedSpaceIds(): Set<string> {
+    if (!this.mapData) return new Set();
     const active = hazardStore.getActiveHazards();
     const set = new Set<string>();
     for (const h of active) {
@@ -723,6 +724,7 @@ export class EmergencyPanel {
   }
 
   clearPreviewHighlight() {
+    if (!this.mapData || !this.mapView) return;
     const activeIds = this.getActiveBlockedSpaceIds();
     this.previewSpaceIds.forEach((spId) => {
       if (!activeIds.has(spId)) {
@@ -957,6 +959,7 @@ export class EmergencyPanel {
       CONFIGURED_BUILDINGS[0];
 
     this.currentBuildingId = building.id;
+    if (!this.callbacks || !this.mapData || !this.mapView) return;
 
     // 1. Switch floor in MapView
     if (this.mapView && building.floorId) {
@@ -1254,6 +1257,7 @@ export class EmergencyPanel {
   }
 
   private updateActiveHazardsList() {
+    if (!this.panelEl) return;
     const listEl = document.getElementById("activeHazardsList");
     const countBadge = this.panelEl.querySelector("#activeHazardsCountBadge");
     if (!listEl) return;
@@ -1303,6 +1307,7 @@ export class EmergencyPanel {
   }
 
   renderMapMarkers() {
+    if (!this.mapData || !this.mapView) return;
     // 1. Reset any spaces previously colored red that are no longer in an active hazard and not in preview
     const active = hazardStore.getActiveHazards();
     const activeBlockedSpaceIds = this.getActiveBlockedSpaceIds();
@@ -1657,7 +1662,7 @@ export class EmergencyPanel {
   }
 
   private updateSosHubContent() {
-    if (!this.incidentModalEl) return;
+    if (!this.incidentModalEl || !this.mapData) return;
     const startSpace = this.callbacks.getCurrentStartSpace();
     const building =
       CONFIGURED_BUILDINGS.find(
