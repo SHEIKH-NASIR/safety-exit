@@ -129,7 +129,9 @@ Compiled static assets are generated in the `dist/` directory.
 
 ## 🌐 Free Deployment to Render (Connected to GitHub)
 
-CampusResQ is a client-side static web application optimized for deployment as a **Render Static Site**.
+CampusResQ supports full dual deployment on Render:
+1. **Frontend Static Site (`safety-exit`)**: Single-page application served via Render Static Site.
+2. **Auth Web Service (`safety-exit-api`)**: Minimal Node.js service that securely exchanges private Mappedin credentials for short-lived access tokens, ensuring private keys are never exposed in client bundles.
 
 ### Method A: One-Click Blueprint Deployment via `render.yaml`
 1. Push this repository to GitHub: `https://github.com/SHEIKH-NASIR/safety-exit.git`.
@@ -137,31 +139,26 @@ CampusResQ is a client-side static web application optimized for deployment as a
 3. Click **New +** $\rightarrow$ **Blueprint**.
 4. Connect your GitHub repository `SHEIKH-NASIR/safety-exit`.
 5. Render reads `render.yaml` automatically and configures:
-   - **Service Type**: Static Site
-   - **Build Command**: `npm install && npm run build`
-   - **Publish Directory**: `dist`
-   - **SPA Rewrites**: `/* -> /index.html`
-6. Click **Apply**. Your site will build and deploy automatically to a free `*.onrender.com` URL!
+   - **Static Site (`safety-exit`)**: Build command `npm install && npm run build`, publish path `dist`.
+   - **Web Service (`safety-exit-api`)**: Build command `npm install`, start command `npm run start:api`.
+6. Click **Apply**. Both services will build and deploy automatically!
+7. *(Optional)* If using private custom venue credentials, set `MAPPEDIN_KEY` and `MAPPEDIN_SECRET` in the `safety-exit-api` Web Service Environment settings on Render.
 
-### Method B: Manual Static Site Setup
+### Method B: Standalone Static Site Setup
 1. In the [Render Dashboard](https://dashboard.render.com), click **New +** $\rightarrow$ **Static Site**.
 2. Connect `SHEIKH-NASIR/safety-exit`.
-3. Configure the settings:
+3. Configure settings:
    - **Name**: `safety-exit`
    - **Branch**: `master`
    - **Build Command**: `npm install && npm run build`
    - **Publish Directory**: `dist`
-4. *(Optional)* In **Environment Variables**, set:
-   - `MAPPEDIN_MAP_ID`
-   - `MAPPEDIN_KEY`
-   - `MAPPEDIN_SECRET`
-   - `MAPPEDIN_ENV`
-5. Click **Create Static Site**.
+4. Click **Create Static Site**.
 
 ---
 
-## 🔒 Security & Privacy Notes
-- **Zero Exposed Server Secrets**: All navigation, hazard avoidance, and snapshot restoration run purely in the browser. No private database or server credentials are used or bundled.
+## 🔒 Security & Privacy Architecture
+- **Server-Side Token Authentication**: In production, private API keys (`MAPPEDIN_KEY`, `MAPPEDIN_SECRET`) are kept strictly on the backend (`safety-exit-api`). The client requests short-lived, ephemeral JWT tokens (`/api/mappedin-token`) with zero client-side secret leakage.
+- **Client Fallback Resilience**: If the auth backend is unavailable or cold-starting, the frontend seamlessly falls back to public demo credentials so map navigation and evacuation routing are never interrupted.
 - **Git Protection**: Sensitive configuration files (`.env`, `.env.*`), private keys, build caches (`.parcel-cache-build/`), and temporary scratch logs are strictly excluded via `.gitignore`.
 - **Venue Settings Masking**: Credential inputs inside the collapsible Venue Settings panel are masked (`type="password"`) to prevent accidental plaintext disclosure during presentations and screen sharing.
 

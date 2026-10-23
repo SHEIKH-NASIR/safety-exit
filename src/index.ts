@@ -183,6 +183,58 @@ const getMapDataOptionsWithFallbacks = (): TGetMapDataOptions => {
   return options;
 };
 
+/**
+ * Resolves map data options with prioritized token authentication:
+ * 1. If explicit credentials are typed into Venue Settings by the user, honors them.
+ * 2. If a backend auth endpoint (MAPPEDIN_AUTH_URL) is configured, retrieves a short-lived
+ *    Mappedin accessToken so private credentials remain strictly on the backend.
+ * 3. Falls back safely to public demo credentials if no auth service is configured or reachable.
+ */
+async function resolveMapDataOptions(): Promise<TGetMapDataOptions> {
+  const mapId = (mapIdInput && mapIdInput.value.trim() !== "") ? mapIdInput.value.trim() : DEMO_MAP_ID;
+  const environment = (environmentSelect && environmentSelect.value !== "") ? (environmentSelect.value as "us" | "eu") : DEMO_ENV;
+
+  const customKey = clientIdInput?.value?.trim();
+  const customSecret = clientSecretInput?.value?.trim();
+  // If user typed custom credentials in Venue Settings, use them directly
+  if (customKey && customSecret) {
+    return {
+      mapId,
+      key: customKey,
+      secret: customSecret,
+      environment,
+    };
+  }
+
+  // Attempt token-based authentication via auth service
+  const authUrl =
+    (process.env.MAPPEDIN_AUTH_URL as string) ||
+    (window as any).MAPPEDIN_AUTH_URL;
+
+  if (authUrl) {
+    try {
+      const res = await fetch(authUrl, { method: "GET" });
+      if (res.ok) {
+        const authData = await res.json();
+        const token = authData.accessToken || authData.access_token;
+        if (token) {
+          console.log("🔒 Map authenticated via secure Mappedin token service");
+          return {
+            mapId: authData.mapId || mapId,
+            accessToken: token,
+            environment: (authData.environment as "us" | "eu") || environment,
+          } as TGetMapDataOptions;
+        }
+      }
+    } catch (err) {
+      console.warn("Mappedin token auth service unreachable, falling back:", err);
+    }
+  }
+
+  // Fallback to standard credentials
+  return getMapDataOptionsWithFallbacks();
+}
+
 let startTomSelect: any = null;
 let endTomSelect: any = null;
 
@@ -4323,10 +4375,13 @@ async function init(mapDataOptions: TGetMapDataOptions) {
   }
 }
 
-// Load initial venue
-init(getMapDataOptionsWithFallbacks());
+// Load initial venue exactly once
+resolveMapDataOptions().then((options) => {
+  init(options);
+});
 
 // Load a new venue
-loadMapButton.onclick = () => {
-  init(getMapDataOptionsWithFallbacks());
+loadMapButton.onclick = async () => {
+  const options = await resolveMapDataOptions();
+  init(options);
 };

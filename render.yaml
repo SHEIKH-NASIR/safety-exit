@@ -1,4 +1,5 @@
 services:
+  # 1. CampusResQ Static Frontend
   - type: web
     runtime: static
     name: safety-exit
@@ -17,3 +18,26 @@ services:
         value: 6878b313316caa000b260be4
       - key: MAPPEDIN_ENV
         value: us
+      - key: MAPPEDIN_AUTH_URL
+        value: https://safety-exit-api.onrender.com/api/mappedin-token
+
+  # 2. CampusResQ Mappedin Token Authentication Service
+  # Securely handles private API credentials server-side and issues short-lived client access tokens
+  - type: web
+    runtime: node
+    name: safety-exit-api
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run start:api
+    healthCheckPath: /healthz
+    envVars:
+      - key: MAPPEDIN_KEY
+        sync: false
+      - key: MAPPEDIN_SECRET
+        sync: false
+      - key: MAPPEDIN_MAP_ID
+        value: 6878b313316caa000b260be4
+      - key: MAPPEDIN_ENV
+        value: us
+      - key: CORS_ORIGIN
+        value: https://safety-exit.onrender.com
