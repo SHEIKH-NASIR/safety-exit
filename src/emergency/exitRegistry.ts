@@ -304,6 +304,24 @@ export class ExitRegistry {
     );
   }
 
+  /**
+   * Returns genuine exterior-connected entrances/exits suitable for rescuer exterior building entry.
+   * Internal doors and unverified doors are strictly excluded.
+   */
+  getExteriorEntrances(buildingId?: string): BuildingEntranceExit[] {
+    const norm = buildingId ? buildingId.toLowerCase().replace(/[^a-z0-9]/g, "") : null;
+    return this.entries.filter((e) => {
+      if (!e.isExterior || e.doorType === "internal" || e.verificationStatus !== "verified") {
+        return false;
+      }
+      if (norm) {
+        const eNorm = (e.buildingId || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+        return eNorm === norm;
+      }
+      return true;
+    });
+  }
+
   getById(id: string): BuildingEntranceExit | undefined {
     return this.entries.find((e) => e.id === id);
   }

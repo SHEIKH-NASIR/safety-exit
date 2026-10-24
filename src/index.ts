@@ -37,6 +37,11 @@ let currentDestBuildingId: string = "fs_6878b1ed316caa000b260be2";
 let currentDestFloorId: string = "m_c5bac871ab66226c";
 let currentNavBuildingId: string = "fs_6878b1ed316caa000b260be2"; // Default: Office Building 1
 import { incidentService } from "./emergency/incidentService";
+(window as any).hazardStore = hazardStore;
+(window as any).exitRegistry = exitRegistry;
+(window as any).emergencyPanel = emergencyPanel;
+(window as any).emergencyPanelInstance = emergencyPanel;
+(window as any).incidentService = incidentService;
 const professors: Record<string, string> = {
   "Dr. Smith": "Office 101",
   "Prof. John": "Office 202",
@@ -166,6 +171,16 @@ const startSpaceSelector = document.getElementById(
 const endSpaceSelector = document.getElementById(
   "endSpace"
 )! as HTMLSelectElement;
+
+const rescuerEntryGroup = document.getElementById(
+  "rescuerEntryGroup"
+) as HTMLDivElement | null;
+const rescuerEntrySelector = document.getElementById(
+  "rescuerEntrySelector"
+) as HTMLSelectElement | null;
+const rescuerEntryStatus = document.getElementById(
+  "rescuerEntryStatus"
+) as HTMLDivElement | null;
 
 const showPathCheckbox = document.getElementById(
   "showPath"
@@ -424,7 +439,7 @@ resetButton.onclick = () => {
       console.warn("Failed to clear startTomSelect:", e);
     }
   }
-  if (endTomSelect && typeof endTomSelect.clear === "function") {
+  if (endTomSelect && typeof endTomSelect.clear === "function" && !rescuerSession.isActive) {
     try {
       endTomSelect.clear();
     } catch (e) {
@@ -434,8 +449,35 @@ resetButton.onclick = () => {
   if (startSpaceSelector) {
     startSpaceSelector.value = "";
   }
-  if (endSpaceSelector) {
+  if (endSpaceSelector && !rescuerSession.isActive) {
     endSpaceSelector.value = "";
+  }
+
+  // If in an active SOS rescuer session, keep victim destination strictly locked and preserve red zones
+  if (rescuerSession.isActive) {
+    if (rescuerSession.victimSpaceId) {
+      endSpaceSelector.value = rescuerSession.victimSpaceId;
+      if (endTomSelect && typeof endTomSelect.setValue === "function") {
+        endTomSelect.setValue(rescuerSession.victimSpaceId);
+      }
+    }
+    const rescuerSel = document.getElementById("rescuerEntrySelector") as HTMLSelectElement | null;
+    if (rescuerSel) rescuerSel.value = "";
+    const rescuerStatusEl = document.getElementById("rescuerEntryStatus");
+    if (rescuerStatusEl) rescuerStatusEl.style.display = "none";
+
+    if (rescuerSession.victimCoordinates && mapView?.Markers) {
+      try {
+        mapView.Markers.add(
+          rescuerSession.victimCoordinates,
+          `<div style="font-size: 13px; font-weight: 800; background: #dc2626; color: #fff; padding: 4px 8px; border-radius: 6px; box-shadow: 0 2px 8px rgba(220,38,38,0.5); border: 2px solid #fff;">🚨 SOS VICTIM: ${rescuerSession.victimName}</div>`
+        );
+      } catch {}
+    }
+
+    if (emergencyPanel) {
+      emergencyPanel.renderMapMarkers();
+    }
   }
 
   // Restore colored spaces if any
@@ -2618,6 +2660,276 @@ async function init(mapDataOptions: TGetMapDataOptions) {
     });
   }
 
+  // Rescuer session state tracker
+  interface RescuerSessionState {
+    isActive: boolean;
+    victimSpaceId: string;
+    victimName: string;
+    victimBuildingId: string;
+    victimBuildingName: string;
+    victimFloorId: string;
+    victimFloorName: string;
+    victimCoordinates?: { latitude: number; longitude: number };
+    incidentId: string;
+    selectedEntranceDoorId: string | null;
+  }
+
+  let rescuerSession: RescuerSessionState = {
+    isActive: false,
+    victimSpaceId: "",
+    victimName: "",
+    victimBuildingId: "",
+    victimBuildingName: "",
+    victimFloorId: "",
+    victimFloorName: "",
+    incidentId: "",
+    selectedEntranceDoorId: null,
+  };
+
+  (window as any).rescuerSession = rescuerSession;
+
+  function populateRescuerEntrySelector(targetBuildingId: string) {
+    if (!rescuerEntryGroup || !rescuerEntrySelector) return;
+
+    rescuerEntryGroup.style.display = "block";
+    rescuerEntrySelector.innerHTML = "";
+
+    // Query genuine audited exterior entrances from exitRegistry
+    const allVerified = exitRegistry.getExteriorEntrances();
+    // Validate against actual mapData doors
+    const genuineEntrances = allVerified.filter((e) => {
+      const door = mapData.getById("door", e.doorId);
+      const space = e.spaceId ? mapData.getById("space", e.spaceId) : null;
+      return Boolean(door || space);
+    });
+
+    if (genuineEntrances.length === 0) {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "⚠️ No verified exterior entrances found in venue data";
+      rescuerEntrySelector.appendChild(opt);
+      rescuerEntrySelector.disabled = true;
+      if (rescuerEntryStatus) {
+        rescuerEntryStatus.style.display = "block";
+        rescuerEntryStatus.style.background = "#fee2e2";
+        rescuerEntryStatus.style.color = "#991b1b";
+        rescuerEntryStatus.textContent = "No verified exterior entrances are available in map data for this venue.";
+      }
+      return;
+    }
+
+    rescuerEntrySelector.disabled = false;
+    const defaultOpt = document.createElement("option");
+    defaultOpt.value = "";
+    defaultOpt.textContent = "-- Select Building Exterior Entry / Exit --";
+    rescuerEntrySelector.appendChild(defaultOpt);
+
+    const normTarget = hazardStore.normalizeBuildingId(targetBuildingId);
+    const targetBuildingEntrances = genuineEntrances.filter(
+      (e) => hazardStore.normalizeBuildingId(e.buildingId) === normTarget
+    );
+    const otherBuildingEntrances = genuineEntrances.filter(
+      (e) => hazardStore.normalizeBuildingId(e.buildingId) !== normTarget
+    );
+
+    const addOption = (e: BuildingEntranceExit, parent: HTMLElement) => {
+      const opt = document.createElement("option");
+      opt.value = e.doorId;
+      const isEmerg = e.isEmergencyExit && !e.isEntrance;
+      opt.textContent = `${isEmerg ? "🚨" : "🚪"} ${e.name} (${e.floorName || "Ground"})`;
+      parent.appendChild(opt);
+    };
+
+    if (targetBuildingEntrances.length > 0) {
+      const targetGroup = document.createElement("optgroup");
+      const targetBuildingName = rescuerSession.victimBuildingName || targetBuildingEntrances[0].buildingName || "Victim's Building";
+      targetGroup.label = `Victim's Building (${targetBuildingName})`;
+      for (const e of targetBuildingEntrances) {
+        addOption(e, targetGroup);
+      }
+      rescuerEntrySelector.appendChild(targetGroup);
+    }
+
+    if (otherBuildingEntrances.length > 0) {
+      const otherGroup = document.createElement("optgroup");
+      otherGroup.label = "Other Campus Exterior Entrances";
+      for (const e of otherBuildingEntrances) {
+        addOption(e, otherGroup);
+      }
+      rescuerEntrySelector.appendChild(otherGroup);
+    }
+
+    rescuerEntrySelector.onchange = (ev: Event) => {
+      const selectedDoorId = (ev.target as HTMLSelectElement).value;
+      if (selectedDoorId) {
+        handleRescuerEntranceSelection(selectedDoorId);
+      }
+    };
+  }
+
+  function handleRescuerEntranceSelection(doorId: string) {
+    if (!doorId) return;
+    const entrance = exitRegistry.getByDoorId(doorId) || exitRegistry.getById(doorId);
+    if (!entrance) {
+      console.warn("Entrance not found in registry:", doorId);
+      return;
+    }
+
+    const doorObj = mapData.getById("door", entrance.doorId);
+    const spaceObj = entrance.spaceId ? mapData.getById("space", entrance.spaceId) : null;
+    const startTarget = doorObj || spaceObj;
+    if (!startTarget) {
+      console.error("Selected entrance door/space missing in mapData:", doorId);
+      return;
+    }
+
+    rescuerSession.selectedEntranceDoorId = entrance.doorId;
+
+    // 1. Set Rescuer Start Building & Floor
+    currentStartBuildingId = entrance.buildingId;
+    currentStartFloorId = entrance.floorId;
+
+    const startBSel = document.getElementById("startBuildingSelector") as HTMLSelectElement | null;
+    if (startBSel) startBSel.value = entrance.buildingId;
+
+    const startFSel = document.getElementById("startFloorSelector") as HTMLSelectElement | null;
+    const startBadge = document.getElementById("startFloorBadge");
+    if (startFSel) {
+      populateFloorSelect(startFSel, entrance.buildingId, entrance.floorId, startBadge);
+    }
+
+    if (startTomSelect && typeof (startTomSelect as any).updateForBuilding === "function") {
+      (startTomSelect as any).updateForBuilding(entrance.buildingId, entrance.floorId);
+    }
+
+    const startTargetId = doorObj ? doorObj.id : spaceObj!.id;
+    if (startTomSelect && typeof startTomSelect.addOption === "function") {
+      startTomSelect.addOption({
+        value: startTargetId,
+        text: `🚪 Entrance: ${entrance.name}`,
+      });
+      startTomSelect.setValue(startTargetId);
+    }
+    startSpaceSelector.value = startTargetId;
+    onStartSpaceChange({ target: { value: startTargetId } });
+
+    // 2. Guarantee Victim Destination remains locked
+    endSpaceSelector.value = rescuerSession.victimSpaceId;
+    if (endTomSelect && typeof endTomSelect.setValue === "function") {
+      endTomSelect.setValue(rescuerSession.victimSpaceId);
+    }
+
+    // 3. Mark Rescuer Entry Point on Map
+    if (mapView.Markers && entrance.coordinates) {
+      try {
+        mapView.Markers.add(
+          entrance.coordinates,
+          `<div style="font-size: 12px; font-weight: 800; background: #16a34a; color: #fff; padding: 4px 8px; border-radius: 6px; box-shadow: 0 2px 8px rgba(22,163,74,0.5); border: 2px solid #fff;">🚪 RESCUER ENTRY: ${entrance.name}</div>`,
+          { rank: 9 }
+        );
+      } catch {}
+    }
+
+    // 4. Ensure red hazard overlays are 100% rendered and preserved
+    if (emergencyPanel) {
+      emergencyPanel.renderMapMarkers();
+    }
+
+    // 5. Check if entrance itself is blocked by an active hazard
+    const isEntranceBlocked =
+      hazardStore.isLocationBlocked(entrance.doorId, entrance.buildingId) ||
+      hazardStore.isLocationBlocked(entrance.id, entrance.buildingId);
+
+    const statusEl = document.getElementById("rescuerEntryStatus");
+
+    if (isEntranceBlocked) {
+      mapView.Navigation.clear();
+      positions = undefined;
+      activeInstructions = [];
+      hideInstructionBanner();
+      hideRouteSummary();
+      if (statusEl) {
+        statusEl.style.display = "block";
+        statusEl.style.background = "#fee2e2";
+        statusEl.style.color = "#991b1b";
+        statusEl.style.border = "1px solid #f87171";
+        statusEl.innerHTML = `⚠️ <b>Entrance Blocked:</b> "${entrance.name}" is directly compromised by a reported hazard. Please select an alternate entry point.`;
+      }
+      alert("NO SAFE ROUTE AVAILABLE — YOUR DESTINATION CANNOT BE REACHED WITHOUT CROSSING A BLOCKED AREA.");
+      return;
+    }
+
+    // 6. Execute Route Generation from Entrance to Locked Victim
+    const routeSuccess = executeRouteGeneration();
+
+    if (routeSuccess) {
+      if (statusEl) {
+        statusEl.style.display = "block";
+        statusEl.style.background = "#dcfce7";
+        statusEl.style.color = "#15803d";
+        statusEl.style.border = "1px solid #86efac";
+        statusEl.innerHTML = `✅ <b>Safe Rescue Route Plotted:</b> Entering via <b>${entrance.name}</b> &rarr; Navigating safely to victim (<b>${rescuerSession.victimName}</b>).`;
+      }
+      showToast(`🏃 RESCUE ROUTE: Enter via ${entrance.name} and follow green safe route to victim!`);
+    } else {
+      if (statusEl) {
+        statusEl.style.display = "block";
+        statusEl.style.background = "#fee2e2";
+        statusEl.style.color = "#991b1b";
+        statusEl.style.border = "1px solid #f87171";
+        statusEl.innerHTML = `⛔ <b>No Safe Route:</b> Paths from "${entrance.name}" to victim cross active red-zone hazards. Please select an alternate entrance.`;
+      }
+    }
+  }
+
+  function activateRescuerSession(params: {
+    victimSpaceId: string;
+    victimName: string;
+    buildingId: string;
+    buildingName?: string;
+    floorId: string;
+    floorName?: string;
+    coordinates?: { latitude: number; longitude: number };
+    incidentId?: string;
+  }) {
+    rescuerSession.isActive = true;
+    rescuerSession.victimSpaceId = params.victimSpaceId;
+    rescuerSession.victimName = params.victimName;
+    rescuerSession.victimBuildingId = params.buildingId;
+    rescuerSession.victimBuildingName = params.buildingName || "Target Building";
+    rescuerSession.victimFloorId = params.floorId;
+    rescuerSession.victimFloorName = params.floorName || "Level 1";
+    rescuerSession.victimCoordinates = params.coordinates;
+    rescuerSession.incidentId = params.incidentId || "INC-SHARED";
+    rescuerSession.selectedEntranceDoorId = null;
+
+    // 1. Lock Destination controls to ensure victim destination is never overwritten
+    const destBSel = document.getElementById("destBuildingSelector") as HTMLSelectElement | null;
+    const destFSel = document.getElementById("destFloorSelector") as HTMLSelectElement | null;
+    const destBadge = document.getElementById("destFloorBadge");
+    const destSection = document.getElementById("destDashboardSection");
+    if (destBSel) destBSel.disabled = true;
+    if (destFSel) destFSel.disabled = true;
+    if (endSpaceSelector) endSpaceSelector.disabled = true;
+    if (endTomSelect && typeof (endTomSelect as any).disable === "function") {
+      try { (endTomSelect as any).disable(); } catch {}
+    }
+    if (destBadge) {
+      destBadge.textContent = "🔒 LOCKED TO VICTIM";
+      destBadge.style.background = "#fee2e2";
+      destBadge.style.color = "#dc2626";
+    }
+    if (destSection) {
+      destSection.style.borderLeftColor = "#ef4444";
+    }
+
+    // 2. Populate and display Rescuer Entry Point Selector
+    populateRescuerEntrySelector(params.buildingId);
+  }
+
+  (window as any).handleRescuerEntranceSelection = handleRescuerEntranceSelection;
+  (window as any).populateRescuerEntrySelector = populateRescuerEntrySelector;
+
   // Load a shared "meet me here" or SOS rescue link (Issue 1)
   function loadSharedMeetLinkFromUrl() {
     const params = new URLSearchParams(window.location.search);
@@ -2704,11 +3016,18 @@ async function init(mapDataOptions: TGetMapDataOptions) {
 
         // 7. Add Victim marker on map
         const victimCoord = snapshot.victim.coordinates || victimTarget?.center;
-        if (victimCoord && mapView.Markers) {
-          mapView.Markers.add(
-            victimCoord,
-            `<div style="font-size: 13px; font-weight: 800; background: #dc2626; color: #fff; padding: 4px 8px; border-radius: 6px; box-shadow: 0 2px 8px rgba(220,38,38,0.5); border: 2px solid #fff;">🚨 SOS VICTIM: ${victimName}</div>`
-          );
+        if (mapView?.Markers) {
+          try {
+            const markerTarget = victimTarget || victimCoord;
+            if (markerTarget) {
+              mapView.Markers.add(
+                markerTarget,
+                `<div style="font-size: 13px; font-weight: 800; background: #dc2626; color: #fff; padding: 4px 8px; border-radius: 6px; box-shadow: 0 2px 8px rgba(220,38,38,0.5); border: 2px solid #fff;">🚨 SOS VICTIM: ${victimName}</div>`
+              );
+            }
+          } catch (mErr) {
+            console.warn("Could not add victim marker:", mErr);
+          }
         }
 
         showToast(
@@ -2723,6 +3042,18 @@ async function init(mapDataOptions: TGetMapDataOptions) {
             emergencyPanel.renderMapMarkers();
             showToast("🔄 Active incident restrictions updated by victim in real time!");
           }
+        });
+
+        // 8. Activate Rescuer-Only session and populate genuine exterior entry points
+        activateRescuerSession({
+          victimSpaceId: snapshot.victim.spaceId,
+          victimName: victimName,
+          buildingId: snapshot.victim.buildingId,
+          buildingName: snapshot.victim.buildingName,
+          floorId: snapshot.victim.floorId,
+          floorName: snapshot.victim.floorName,
+          coordinates: victimCoord,
+          incidentId: snapshot.incidentId,
         });
 
         return;
@@ -2789,8 +3120,18 @@ async function init(mapDataOptions: TGetMapDataOptions) {
         emergencyPanel.setBuildingId(targetBuilding.id);
         emergencyPanel.renderMapMarkers();
       }
+      activateRescuerSession({
+        victimSpaceId: meetSpaceId,
+        victimName: meetName,
+        buildingId: targetBuilding.id,
+        buildingName: targetBuilding.name,
+        floorId: targetFloorId || targetBuilding.floorId,
+        floorName: targetFloorId ? "Level 1" : undefined,
+        coordinates: meetTarget?.center,
+        incidentId: incId || "INC-SOS",
+      });
       showToast(
-        `🚨 SOS RESCUE ALERT: Victim located at ${meetName}! Select your current location (From) and tap Generate Route.`
+        `🚨 SOS RESCUE ALERT: Victim located at ${meetName}! Select your entry point and follow safe route.`
       );
       setTimeout(hideToast, 6000);
     } else {
@@ -3628,6 +3969,10 @@ async function init(mapDataOptions: TGetMapDataOptions) {
 
   if (btnPickDestOnMap) {
     btnPickDestOnMap.addEventListener("click", () => {
+      if (rescuerSession.isActive) {
+        showToast("⚠️ Destination is locked to the victim's location during an active SOS rescue.");
+        return;
+      }
       setMapPickMode(mapPickMode === "dest" ? null : "dest");
     });
   }
