@@ -38,6 +38,7 @@ export class EmergencyPanel {
   private reopenButton!: HTMLButtonElement;
   private legendEl!: HTMLElement;
   private incidentModalEl!: HTMLElement;
+  private lastEmailDeliveryStatus: { status: string; message?: string } | null = null;
 
   private activeMarkers: any[] = [];
   private coloredHazardSpaces: Set<Space> = new Set();
@@ -2318,6 +2319,36 @@ export class EmergencyPanel {
 
       this.showToast(`🚨 SOS Broadcasted for ${locName}!`);
       this.updateSosHubContent();
+
+      // Dispatch emergency alert email to rescuer
+      const urlInput = modal.querySelector("#sosRescueUrlInput") as HTMLInputElement | null;
+      this.updateEmailDeliveryStatus({ status: "sending" });
+
+      const activeSos = incidentService.getAll().find((i) => i.incidentType === "sos" && i.status !== "Resolved");
+      const activeHazards = hazardStore.getActiveHazards();
+      const victimCoords = (spaceObj as any)?.center;
+
+      incidentService.sendSosEmailNotification({
+        incidentId: activeSos?.id || "INC-SOS",
+        sosUrl: urlInput?.value || window.location.href,
+        victimLocation: locName,
+        victimBuilding: building.name,
+        victimFloor: building.floorName || "Level 1",
+        victimCoordinates: victimCoords ? { latitude: victimCoords.latitude, longitude: victimCoords.longitude } : undefined,
+        timeReported: new Date().toLocaleTimeString(),
+        hazardsCount: activeHazards.length,
+      }).then((result) => {
+        this.updateEmailDeliveryStatus(result);
+        if (result.status === "sent") {
+          this.showToast("✅ Emergency SOS email sent successfully to rescuer!");
+        } else if (result.status === "not_configured") {
+          this.showToast("⚠️ SOS created. Email is not configured; copy the SOS link manually.");
+        } else if (result.status === "already_sent") {
+          // No duplicate toast needed
+        } else {
+          this.showToast("⚠️ SOS created, but email delivery failed. Please copy the SOS link manually.");
+        }
+      });
     });
 
     modal.querySelector("#btnModalFindNearestExit")!.addEventListener("click", () => {
@@ -2456,6 +2487,45 @@ export class EmergencyPanel {
           });
         });
       }
+    }
+
+    if (this.lastEmailDeliveryStatus) {
+      this.updateEmailDeliveryStatus(this.lastEmailDeliveryStatus);
+    }
+  }
+
+  updateEmailDeliveryStatus(result: { status: string; message?: string }) {
+    this.lastEmailDeliveryStatus = result;
+    if (!this.incidentModalEl) return;
+    const statusEl = this.incidentModalEl.querySelector("#sosEmailDeliveryStatus") as HTMLDivElement | null;
+    if (!statusEl) return;
+
+    statusEl.style.display = "block";
+    if (result.status === "sending") {
+      statusEl.style.background = "#eff6ff";
+      statusEl.style.color = "#1d4ed8";
+      statusEl.style.border = "1px solid #bfdbfe";
+      statusEl.innerHTML = "✉️ <i>Sending emergency alert email to rescuer...</i>";
+    } else if (result.status === "sent") {
+      statusEl.style.background = "#dcfce7";
+      statusEl.style.color = "#15803d";
+      statusEl.style.border = "1px solid #86efac";
+      statusEl.innerHTML = `✅ <b>Email sent successfully</b> to rescuer.`;
+    } else if (result.status === "not_configured") {
+      statusEl.style.background = "#fef9c3";
+      statusEl.style.color = "#854d0e";
+      statusEl.style.border = "1px solid #fef08a";
+      statusEl.innerHTML = `⚠️ <b>SOS created.</b> Email is not configured; copy the SOS link manually.`;
+    } else if (result.status === "already_sent") {
+      statusEl.style.background = "#f1f5f9";
+      statusEl.style.color = "#475569";
+      statusEl.style.border = "1px solid #cbd5e1";
+      statusEl.innerHTML = `ℹ️ Email alert was already dispatched for this incident.`;
+    } else {
+      statusEl.style.background = "#fee2e2";
+      statusEl.style.color = "#991b1b";
+      statusEl.style.border = "1px solid #fca5a5";
+      statusEl.innerHTML = `⚠️ <b>SOS created</b>, but email delivery failed. Please copy the SOS link manually.`;
     }
   }
 

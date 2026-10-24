@@ -6,6 +6,32 @@
 // ==============================================================================
 
 import http from "node:http";
+import fs from "node:fs";
+import path from "node:path";
+import url from "node:url";
+import nodemailer from "nodemailer";
+
+// Helper to load .env robustly from project root or relative to script regardless of CWD
+function loadEnvConfig() {
+  if (typeof process.loadEnvFile !== "function") return;
+  const candidates = [
+    path.resolve(process.cwd(), ".env"),
+    path.resolve(path.dirname(url.fileURLToPath(import.meta.url)), "../.env"),
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      try {
+        process.loadEnvFile(candidate);
+        break;
+      } catch (e) {
+        // Fallback to next candidate
+      }
+    }
+  }
+}
+
+// Initial environment load
+loadEnvConfig();
 
 const PORT = parseInt(process.env.PORT || "3000", 10);
 const DEFAULT_MAP_ID = process.env.MAPPEDIN_MAP_ID || "6878b313316caa000b260be4";
@@ -133,12 +159,56 @@ function checkRateLimit(ip) {
   };
 }
 
+// Helper to mask email address in logs (e.g., s***r@gmail.com)
+function maskEmail(email) {
+  if (!email || typeof email !== "string") return "unknown";
+  const parts = email.split("@");
+  if (parts.length !== 2) return "***";
+  const user = parts[0];
+  const domain = parts[1];
+  const maskedUser = user.length <= 2 ? user[0] + "*" : user[0] + "*".repeat(user.length - 2) + user[user.length - 1];
+  return `${maskedUser}@${domain}`;
+}
+
+// In-memory deduplication cache for sent incident emails: Map<incidentId, number (timestamp)>
+const sentIncidentEmails = new Map();
+const DEDUP_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+
+// Rate limit map for email dispatch: max 10 emails per minute per IP
+const emailRateLimitMap = new Map();
+const EMAIL_RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const MAX_EMAILS_PER_WINDOW = 10;
+
+function checkEmailRateLimit(ip) {
+  const now = Date.now();
+  const entry = emailRateLimitMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    emailRateLimitMap.set(ip, { count: 1, resetAt: now + EMAIL_RATE_LIMIT_WINDOW_MS });
+    return { allowed: true };
+  }
+  if (entry.count >= MAX_EMAILS_PER_WINDOW) {
+    return { allowed: false };
+  }
+  entry.count++;
+  return { allowed: true };
+}
+
 // Clean up stale rate limit entries periodically
 const cleanupTimer = setInterval(() => {
   const now = Date.now();
   for (const [ip, entry] of rateLimitMap.entries()) {
     if (now > entry.resetAt) {
       rateLimitMap.delete(ip);
+    }
+  }
+  for (const [ip, entry] of emailRateLimitMap.entries()) {
+    if (now > entry.resetAt) {
+      emailRateLimitMap.delete(ip);
+    }
+  }
+  for (const [incId, timestamp] of sentIncidentEmails.entries()) {
+    if (now - timestamp > DEDUP_WINDOW_MS) {
+      sentIncidentEmails.delete(incId);
     }
   }
 }, 5 * 60 * 1000);
@@ -342,12 +412,265 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // SOS Emergency Email Notification Endpoint
+  if (url.pathname === "/api/sos/notify-email") {
+    // 1. Strict Method validation: POST only
+    if (req.method !== "POST") {
+      res.setHeader("Allow", "POST, OPTIONS");
+      res.writeHead(405, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Method Not Allowed", message: "Only POST is allowed on this endpoint." }));
+      return;
+    }
+
+    // 2. Strict Origin check
+    if (origin && !isOriginAllowed(origin)) {
+      res.writeHead(403, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Forbidden", message: "Origin not allowed by CORS policy." }));
+      return;
+    }
+
+    // 3. Email rate limiting per client IP
+    const clientIp = getClientIp(req);
+    const emailRate = checkEmailRateLimit(clientIp);
+    if (!emailRate.allowed) {
+      res.writeHead(429, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({
+        error: "Too Many Requests",
+        message: "Email dispatch rate limit exceeded. Please wait before retrying.",
+      }));
+      return;
+    }
+
+    // 4. Secure body parsing (max 50KB)
+    let bodyRaw = "";
+    req.on("data", (chunk) => {
+      bodyRaw += chunk;
+      if (bodyRaw.length > 50 * 1024) {
+        req.destroy();
+      }
+    });
+
+    req.on("end", async () => {
+      let body;
+      try {
+        body = JSON.parse(bodyRaw);
+      } catch (e) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Bad Request", message: "Invalid JSON payload." }));
+        return;
+      }
+
+      const {
+        incidentId,
+        sosUrl,
+        victimLocation,
+        victimBuilding,
+        victimFloor,
+        victimCoordinates,
+        timeReported,
+        hazardsCount,
+      } = body || {};
+
+      // 5. Input validation
+      if (!incidentId || typeof incidentId !== "string" || !/^[a-zA-Z0-9_-]{4,64}$/.test(incidentId)) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid Parameter", message: "Missing or invalid incidentId format." }));
+        return;
+      }
+
+      if (!sosUrl || typeof sosUrl !== "string" || !sosUrl.startsWith("http")) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid Parameter", message: "Missing or invalid sosUrl format." }));
+        return;
+      }
+
+      // 6. Duplicate prevention check
+      const now = Date.now();
+      const lastSent = sentIncidentEmails.get(incidentId);
+      if (lastSent && (now - lastSent) < DEDUP_WINDOW_MS) {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({
+          success: true,
+          status: "already_sent",
+          message: "Email notification was already dispatched for this incident.",
+          incidentId,
+        }));
+        return;
+      }
+
+      // 7. Check SMTP Configuration (re-read .env in case credentials were updated at runtime)
+      loadEnvConfig();
+      const smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
+      const smtpPort = parseInt(process.env.SMTP_PORT || "587", 10);
+      const smtpUser = process.env.SMTP_USER;
+      const rawPass = process.env.SMTP_PASS;
+      const cleanPass = rawPass ? rawPass.replace(/\s+/g, "").trim() : "";
+      const rescuerEmail = process.env.RESCUER_EMAIL || smtpUser;
+
+      const isConfigured = Boolean(
+        smtpUser &&
+        cleanPass &&
+        cleanPass !== "YOUR_NEW_GOOGLE_APP_PASSWORD" &&
+        rescuerEmail
+      );
+
+      if (!isConfigured) {
+        console.log(`[SOS Notification] SMTP not configured. Incident ${incidentId} created without email dispatch.`);
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({
+          success: false,
+          status: "not_configured",
+          message: "SOS created. Email is not configured; copy the SOS link manually.",
+          incidentId,
+        }));
+        return;
+      }
+
+      // 8. Dispatch Email via Nodemailer
+      try {
+        console.log(`[SOS Notification] Dispatching alert email for incident ${incidentId} to ${maskEmail(rescuerEmail)} via ${smtpHost}:${smtpPort}...`);
+        const transporter = nodemailer.createTransport({
+          host: smtpHost,
+          port: smtpPort,
+          secure: false, // port 587 uses STARTTLS
+          auth: {
+            user: smtpUser,
+            pass: cleanPass,
+          },
+          tls: {
+            rejectUnauthorized: true,
+          },
+        });
+
+        const subject = `CampusResQ Emergency SOS — [${incidentId}]`;
+        const locDisplay = victimLocation || "Reported Location";
+        const buildingDisplay = victimBuilding || "Campus Building";
+        const floorDisplay = victimFloor || "Level 1";
+        const coordsDisplay = victimCoordinates && typeof victimCoordinates.latitude === "number" && typeof victimCoordinates.longitude === "number"
+          ? `${victimCoordinates.latitude.toFixed(6)}, ${victimCoordinates.longitude.toFixed(6)}`
+          : "N/A";
+        const timeDisplay = timeReported || new Date().toLocaleTimeString();
+        const hazardsDisplay = typeof hazardsCount === "number" ? hazardsCount : 0;
+
+        const mailOptions = {
+          from: `"CampusResQ Safety Beacon" <${smtpUser}>`,
+          to: rescuerEmail,
+          subject,
+          text: `🚨 CAMPUSRESQ EMERGENCY SOS ALERT\n\n` +
+            `Incident ID: ${incidentId}\n` +
+            `Status: CRITICAL RESCUE DISPATCH\n` +
+            `Victim Location: ${locDisplay}\n` +
+            `Building: ${buildingDisplay}\n` +
+            `Floor: ${floorDisplay}\n` +
+            `Coordinates: ${coordsDisplay}\n` +
+            `Time: ${timeDisplay}\n` +
+            `Active Red-Zone Hazards: ${hazardsDisplay}\n\n` +
+            `Open CampusResQ Rescuer Map:\n${sosUrl}\n\n` +
+            `Instructions for Responders:\n` +
+            `1. Open the rescue link above to launch the live navigation map.\n` +
+            `2. The victim's destination is locked to their reported location.\n` +
+            `3. Select an available building exterior entrance point to plot the safest route avoiding active red-zone hazards.\n` +
+            `4. Follow turn-by-turn guidance and Blue Dot navigation to reach the victim safely.`,
+          html: `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+              <div style="background: #dc2626; color: #ffffff; padding: 18px 24px;">
+                <div style="font-size: 12px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase;">CampusResQ Safety Operations</div>
+                <h1 style="margin: 6px 0 0; font-size: 22px; font-weight: 800; color: #ffffff;">🚨 Emergency SOS Distress Alert</h1>
+              </div>
+              <div style="padding: 24px;">
+                <div style="background: #fee2e2; border-left: 4px solid #dc2626; padding: 12px 16px; border-radius: 4px; margin-bottom: 20px;">
+                  <div style="font-size: 13px; font-weight: 700; color: #991b1b;">IMMEDIATE RESCUE DISPATCH REQUIRED</div>
+                  <div style="font-size: 12px; color: #7f1d1d; margin-top: 2px;">A campus user has triggered an active SOS beacon. Open the rescuer map below to begin navigation.</div>
+                </div>
+
+                <table style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 24px;">
+                  <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="padding: 8px 0; color: #64748b; font-weight: 600; width: 38%;">Incident ID:</td>
+                    <td style="padding: 8px 0; font-weight: 700; color: #0f172a;"><span style="background: #fee2e2; color: #dc2626; padding: 2px 8px; border-radius: 4px; font-family: monospace;">${incidentId}</span></td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="padding: 8px 0; color: #64748b; font-weight: 600;">Reported Location:</td>
+                    <td style="padding: 8px 0; font-weight: 700; color: #1e293b;">${locDisplay}</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="padding: 8px 0; color: #64748b; font-weight: 600;">Building & Floor:</td>
+                    <td style="padding: 8px 0; color: #334155;">${buildingDisplay} · ${floorDisplay}</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="padding: 8px 0; color: #64748b; font-weight: 600;">Coordinates:</td>
+                    <td style="padding: 8px 0; color: #334155; font-family: monospace; font-size: 12px;">${coordsDisplay}</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="padding: 8px 0; color: #64748b; font-weight: 600;">Time Reported:</td>
+                    <td style="padding: 8px 0; color: #334155;">${timeDisplay}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #64748b; font-weight: 600;">Active Hazards:</td>
+                    <td style="padding: 8px 0; color: ${hazardsDisplay > 0 ? '#dc2626' : '#16a34a'}; font-weight: 700;">${hazardsDisplay} hazard restriction(s) synchronized</td>
+                  </tr>
+                </table>
+
+                <div style="text-align: center; margin: 28px 0;">
+                  <a href="${sosUrl}" style="background-color: #dc2626; color: #ffffff; padding: 14px 28px; border-radius: 8px; font-size: 16px; font-weight: 800; text-decoration: none; display: inline-block; box-shadow: 0 4px 14px rgba(220,38,38,0.35);">
+                    Open CampusResQ Rescuer Map
+                  </a>
+                </div>
+
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; margin-bottom: 20px;">
+                  <div style="font-size: 12px; font-weight: 800; color: #334155; text-transform: uppercase; margin-bottom: 6px;">📋 Instructions for Responders</div>
+                  <ol style="margin: 0; padding-left: 20px; font-size: 13px; color: #475569; line-height: 1.5;">
+                    <li>Click <b>Open CampusResQ Rescuer Map</b> above to launch the live navigation map.</li>
+                    <li>The victim's destination is locked to their reported location.</li>
+                    <li>Select an available building exterior entrance point to plot the safest route avoiding active red-zone hazards.</li>
+                    <li>Follow turn-by-turn guidance and Blue Dot navigation to reach the victim safely.</li>
+                  </ol>
+                </div>
+
+                <p style="font-size: 11px; color: #94a3b8; line-height: 1.4; margin-top: 16px;">
+                  If the button above does not open directly, copy and paste this link into your browser:<br/>
+                  <a href="${sosUrl}" style="color: #2563eb; word-break: break-all;">${sosUrl}</a>
+                </p>
+              </div>
+              <div style="background: #f1f5f9; padding: 12px 24px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid #e2e8f0;">
+                CampusResQ Emergency & Safe Route System · Automated Dispatch Alert
+              </div>
+            </div>
+          `,
+        };
+
+        const info = await transporter.sendMail(mailOptions);
+        sentIncidentEmails.set(incidentId, Date.now());
+        console.log(`[SOS Notification] ✅ Email alert for incident ${incidentId} accepted by mail server (Message ID: ${info.messageId}) for ${maskEmail(rescuerEmail)}.`);
+
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({
+          success: true,
+          status: "sent",
+          message: "Email sent successfully to rescuer.",
+          incidentId,
+          recipient: maskEmail(rescuerEmail),
+        }));
+      } catch (err) {
+        console.error(`[SOS Notification Error] ❌ Failed to send email for incident ${incidentId}:`, err.message);
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({
+          success: false,
+          status: "failed",
+          message: "SOS created, but email delivery failed. Please copy the SOS link manually.",
+          incidentId,
+        }));
+      }
+    });
+    return;
+  }
+
   // 404 for other routes
   res.writeHead(404, { "Content-Type": "application/json" });
   res.end(JSON.stringify({ error: "Not Found", path: url.pathname }));
 });
 
-if (process.env.NODE_ENV !== "test") {
+const isMainModule = process.argv[1] && import.meta.url === url.pathToFileURL(process.argv[1]).href;
+if (isMainModule && process.env.NODE_ENV !== "test") {
   server.listen(PORT, "0.0.0.0", () => {
     console.log(`[CampusResQ Auth Server] Listening on http://0.0.0.0:${PORT}`);
   });
@@ -358,6 +681,9 @@ export {
   fetchMappedinToken,
   getApprovedMapIds,
   checkRateLimit,
+  checkEmailRateLimit,
+  sentIncidentEmails,
+  maskEmail,
   PUBLIC_DEMO_MAP_ID,
   PUBLIC_DEMO_KEY,
   PUBLIC_DEMO_SECRET,

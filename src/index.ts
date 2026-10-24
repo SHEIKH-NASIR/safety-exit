@@ -2912,6 +2912,35 @@ async function init(mapDataOptions: TGetMapDataOptions) {
       // Synchronize via backend API if available
       incidentService.syncWithBackend(snapshot.incidentId, snapshot);
 
+      // Immediately activate emergency mode and open SOS Hub!
+      emergencyPanel.setEmergencyMode(true);
+      emergencyPanel.expand();
+      emergencyPanel.showIncidentDashboard();
+      emergencyPanel.updateEmailDeliveryStatus({ status: "sending" });
+
+      // Automatically dispatch email notification to configured rescuer
+      incidentService.sendSosEmailNotification({
+        incidentId: snapshot.incidentId,
+        sosUrl,
+        victimLocation: locName,
+        victimBuilding: bObj?.name || "Campus Building",
+        victimFloor: typeof flId === "string" ? flId : "Level 1",
+        victimCoordinates: victimSpace?.center ? { latitude: victimSpace.center.latitude, longitude: victimSpace.center.longitude } : undefined,
+        timeReported: new Date().toLocaleTimeString(),
+        hazardsCount: activeHazards.length,
+      }).then((result) => {
+        emergencyPanel.updateEmailDeliveryStatus(result);
+        if (result.status === "sent") {
+          showToast("✅ Emergency SOS alert email sent successfully to rescuer!");
+        } else if (result.status === "not_configured") {
+          showToast("⚠️ SOS created. Email is not configured; copy the SOS link manually.");
+        } else if (result.status === "already_sent") {
+          // No duplicate toast needed
+        } else {
+          showToast("⚠️ SOS created, but email delivery failed. Please copy the SOS link manually.");
+        }
+      });
+
       try {
         await navigator.clipboard.writeText(sosUrl);
         showToast("🆘 SOS Link copied! Opening Emergency Safety Hub...");
@@ -2919,11 +2948,6 @@ async function init(mapDataOptions: TGetMapDataOptions) {
       } catch {
         window.prompt("Copy Emergency SOS Link:", sosUrl);
       }
-
-      // Immediately activate emergency mode and open SOS Hub!
-      emergencyPanel.setEmergencyMode(true);
-      emergencyPanel.expand();
-      emergencyPanel.showIncidentDashboard();
     });
   }
 

@@ -13,7 +13,8 @@
     "@mappedin/dynamic-focus": "6.0.1-beta.53",
     "@mappedin/mappedin-js": "6.0.1-beta.53",
     "@types/geodesy": "^2.2.3",
-    "geodesy": "2.4.0"
+    "geodesy": "2.4.0",
+    "nodemailer": "^10.2.1"
   },
   "devDependencies": {
     "@swc/core": "^1.15.33",

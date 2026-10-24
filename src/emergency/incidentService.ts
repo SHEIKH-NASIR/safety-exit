@@ -315,6 +315,55 @@ export class IncidentService {
     }
   }
 
+  async sendSosEmailNotification(payload: {
+    incidentId: string;
+    sosUrl: string;
+    victimLocation?: string;
+    victimBuilding?: string;
+    victimFloor?: string;
+    victimCoordinates?: { latitude: number; longitude: number };
+    timeReported?: string;
+    hazardsCount?: number;
+  }): Promise<{
+    success: boolean;
+    status: "sent" | "not_configured" | "failed" | "already_sent";
+    message: string;
+    recipient?: string;
+  }> {
+    const candidateUrls: string[] = [];
+    if (
+      typeof window !== "undefined" &&
+      (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") &&
+      window.location.port !== "3000"
+    ) {
+      candidateUrls.push("http://localhost:3000/api/sos/notify-email");
+      candidateUrls.push("http://127.0.0.1:3000/api/sos/notify-email");
+    }
+    candidateUrls.push("/api/sos/notify-email");
+
+    for (const url of candidateUrls) {
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          return data;
+        }
+      } catch {
+        // try next candidate endpoint
+      }
+    }
+
+    return {
+      success: false,
+      status: "failed",
+      message: "SOS created, but backend email service was unreachable. Please copy the SOS link manually.",
+    };
+  }
+
   private loadFromStorage() {
     try {
       const data = localStorage.getItem(STORAGE_KEY);
