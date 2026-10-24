@@ -1443,6 +1443,35 @@ function renderTurnByTurnDirections(
   });
 }
 
+function updateToastPosition() {
+  const toast = document.getElementById("nav-toast") as HTMLDivElement | null;
+  if (!toast) return;
+
+  const summaryOverlay = document.getElementById("route-summary-overlay");
+  const summaryCard = summaryOverlay?.querySelector(".route-summary-card, div") as HTMLElement | null;
+  const isSummaryVisible =
+    summaryOverlay &&
+    summaryOverlay.style.display !== "none" &&
+    summaryCard &&
+    summaryCard.offsetParent !== null;
+
+  if (isSummaryVisible) {
+    const cardRect = summaryCard.getBoundingClientRect();
+    const cardHeight = cardRect.height || 54;
+    const isMobile = window.innerWidth <= 600;
+    const overlayBottom = isMobile ? 12 : 20;
+    const gap = isMobile ? 14 : 20;
+    const computedBottom = Math.max(90, Math.round(overlayBottom + cardHeight + gap));
+    toast.style.bottom = `${computedBottom}px`;
+  } else {
+    toast.style.bottom = window.innerWidth <= 600 ? "16px" : "20px";
+  }
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("resize", updateToastPosition);
+}
+
 // Route-summary floating card, shown after Generate computes a route.
 // Sits neatly at the bottom of the screen without dimming or blocking the map.
 function showRouteSummary(
@@ -1460,8 +1489,9 @@ function showRouteSummary(
     document.body.appendChild(overlay);
   }
 
+  overlay.className = "route-summary-overlay";
   overlay.style.position = "fixed";
-  overlay.style.bottom = "20px";
+  overlay.style.bottom = window.innerWidth <= 600 ? "12px" : "20px";
   overlay.style.left = "0";
   overlay.style.right = "0";
   overlay.style.top = "auto";
@@ -1470,24 +1500,36 @@ function showRouteSummary(
   overlay.style.display = "flex";
   overlay.style.alignItems = "center";
   overlay.style.justifyContent = "center";
-  overlay.style.zIndex = "9998";
+  overlay.style.zIndex = "10000";
+  overlay.style.padding = window.innerWidth <= 600 ? "0 8px" : "0 12px";
+  overlay.style.boxSizing = "border-box";
 
   overlay.innerHTML = "";
 
   const card = document.createElement("div");
+  card.className = "route-summary-card";
   card.style.background = "rgba(255, 255, 255, 0.98)";
   card.style.backdropFilter = "blur(8px)";
+  (card.style as any).webkitBackdropFilter = "blur(8px)";
   card.style.borderRadius = "14px";
-  card.style.padding = "12px 18px";
+  card.style.padding = window.innerWidth <= 600 ? "10px 14px" : "12px 18px";
   card.style.pointerEvents = "auto";
   card.style.display = "flex";
   card.style.alignItems = "center";
-  card.style.gap = "16px";
+  card.style.justifyContent = "space-between";
+  card.style.flexWrap = "wrap";
+  card.style.gap = window.innerWidth <= 600 ? "10px" : "16px";
+  card.style.maxWidth = "min(94vw, 560px)";
+  card.style.boxSizing = "border-box";
   card.style.boxShadow = "0 8px 30px rgba(0,0,0,0.22)";
   card.style.border = "1px solid #e2e8f0";
   card.style.fontFamily = "inherit";
+  card.style.position = "relative";
+  card.style.zIndex = "10001";
 
   const infoCol = document.createElement("div");
+  infoCol.className = "route-summary-info";
+  infoCol.style.minWidth = "180px";
   const title = document.createElement("div");
   title.innerHTML = `🏁 <b>Route Ready: ${stats.etaText}</b>`;
   title.style.fontSize = "14px";
@@ -1504,10 +1546,16 @@ function showRouteSummary(
   card.appendChild(infoCol);
 
   const buttonRow = document.createElement("div");
+  buttonRow.className = "route-summary-buttons";
   buttonRow.style.display = "flex";
   buttonRow.style.gap = "8px";
+  buttonRow.style.alignItems = "center";
+  buttonRow.style.flexShrink = "0";
+  buttonRow.style.position = "relative";
+  buttonRow.style.zIndex = "10002";
 
   const startBtn = document.createElement("button");
+  startBtn.className = "route-summary-start-btn";
   startBtn.innerHTML = "▶ Start Walk";
   startBtn.style.padding = "8px 16px";
   startBtn.style.borderRadius = "8px";
@@ -1517,14 +1565,18 @@ function showRouteSummary(
   startBtn.style.fontWeight = "700";
   startBtn.style.fontSize = "13px";
   startBtn.style.cursor = "pointer";
+  startBtn.style.pointerEvents = "auto";
   startBtn.style.boxShadow = "0 2px 8px rgba(24,128,56,0.35)";
   startBtn.onclick = () => {
     hideRouteSummary();
+    const navToast = document.getElementById("nav-toast");
+    if (navToast) navToast.style.display = "none";
     onStart();
   };
   buttonRow.appendChild(startBtn);
 
   const cancelBtn = document.createElement("button");
+  cancelBtn.className = "route-summary-cancel-btn";
   cancelBtn.innerHTML = "✕ Clear";
   cancelBtn.style.padding = "8px 12px";
   cancelBtn.style.borderRadius = "8px";
@@ -1534,8 +1586,11 @@ function showRouteSummary(
   cancelBtn.style.fontWeight = "600";
   cancelBtn.style.fontSize = "13px";
   cancelBtn.style.cursor = "pointer";
+  cancelBtn.style.pointerEvents = "auto";
   cancelBtn.onclick = () => {
     hideRouteSummary();
+    const navToast = document.getElementById("nav-toast");
+    if (navToast) navToast.style.display = "none";
     mapView.Navigation.clear();
     deleteSpaceMarker();
     onCancel();
@@ -1544,11 +1599,16 @@ function showRouteSummary(
 
   card.appendChild(buttonRow);
   overlay.appendChild(card);
+  overlay.style.display = "flex";
+
+  // Reposition toast nicely above route summary overlay
+  requestAnimationFrame(updateToastPosition);
 }
 
 function hideRouteSummary() {
   const overlay = document.getElementById("route-summary-overlay");
   if (overlay) overlay.style.display = "none";
+  updateToastPosition();
 }
 
 // ✅ NEW: classifies a washroom space's name into 'men' | 'women' |
@@ -2037,6 +2097,7 @@ async function init(mapDataOptions: TGetMapDataOptions) {
     );
 
     const startNavigation = () => {
+      hideToast();
       if (positions) {
         fakePositionUpdater.start(
           positions,
@@ -2058,6 +2119,7 @@ async function init(mapDataOptions: TGetMapDataOptions) {
       nextCrossingPointer = 0;
       crossingToastShownFor.clear();
       hideInstructionBanner();
+      hideToast();
       const directionsListEl = document.getElementById("directionsList");
       if (directionsListEl) {
         directionsListEl.innerHTML = "";
@@ -4559,17 +4621,34 @@ async function init(mapDataOptions: TGetMapDataOptions) {
       toast = document.createElement("div");
       toast.id = "nav-toast";
       toast.style.position = "fixed";
-      toast.style.bottom = "20px";
       toast.style.left = "50%";
       toast.style.transform = "translateX(-50%)";
-      toast.style.padding = "12px 20px";
-      toast.style.background = "rgba(0,0,0,0.85)";
+      toast.style.padding = "10px 18px";
+      toast.style.background = "rgba(20, 20, 20, 0.92)";
+      toast.style.backdropFilter = "blur(6px)";
+      (toast.style as any).webkitBackdropFilter = "blur(6px)";
       toast.style.color = "#fff";
-      toast.style.fontSize = "16px";
-      toast.style.borderRadius = "8px";
+      toast.style.fontSize = "14px";
+      toast.style.fontWeight = "500";
+      toast.style.lineHeight = "1.35";
+      toast.style.borderRadius = "10px";
       toast.style.zIndex = "9999";
       toast.style.textAlign = "center";
+      toast.style.boxShadow = "0 4px 20px rgba(0,0,0,0.35)";
+      toast.style.maxWidth = "min(92vw, 540px)";
+      toast.style.width = "max-content";
+      toast.style.boxSizing = "border-box";
+      toast.style.wordBreak = "break-word";
+      toast.style.whiteSpace = "normal";
+      toast.style.transition = "bottom 0.25s ease, opacity 0.2s ease";
       document.body.appendChild(toast);
+    }
+
+    // Purely informational toasts must NOT intercept clicks to underlying controls
+    if (onArrived) {
+      toast.style.pointerEvents = "auto";
+    } else {
+      toast.style.pointerEvents = "none";
     }
 
     toast.innerHTML = "";
@@ -4577,6 +4656,7 @@ async function init(mapDataOptions: TGetMapDataOptions) {
     const msgEl = document.createElement("div");
     msgEl.id = "nav-toast-msg";
     msgEl.textContent = msg;
+    msgEl.style.pointerEvents = "none";
     toast.appendChild(msgEl);
 
     if (onArrived) {
@@ -4594,16 +4674,20 @@ async function init(mapDataOptions: TGetMapDataOptions) {
       btn.style.color = "#000";
       btn.style.fontWeight = "600";
       btn.style.cursor = "pointer";
+      btn.style.pointerEvents = "auto";
       btn.onclick = onArrived;
       toast.appendChild(btn);
     }
 
+    updateToastPosition();
     toast.style.display = "block";
+    requestAnimationFrame(updateToastPosition);
   }
 
   function updateToast(msg: string) {
     const msgEl = document.getElementById("nav-toast-msg");
     if (msgEl) msgEl.textContent = msg;
+    updateToastPosition();
   }
 
   function hideToast() {

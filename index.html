@@ -400,6 +400,103 @@
       body.dark-mode #download {
         color: var(--text);
       }
+
+      /* =========================================================
+         Bottom Navigation Controls & Rescuer Route Toast Banner
+         Ensures rescue banner floats neatly above controls without
+         overlapping Start Walk or Clear buttons, and prevents click-blocking.
+      ========================================================= */
+      #route-summary-overlay {
+        position: fixed;
+        bottom: 20px;
+        left: 0;
+        right: 0;
+        top: auto;
+        background: transparent;
+        pointer-events: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        padding: 0 12px;
+        box-sizing: border-box;
+      }
+
+      #route-summary-overlay .route-summary-card {
+        background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border-radius: 14px;
+        padding: 12px 18px;
+        pointer-events: auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 16px;
+        max-width: min(94vw, 560px);
+        box-sizing: border-box;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.22);
+        border: 1px solid #e2e8f0;
+        font-family: inherit;
+        position: relative;
+        z-index: 10001;
+      }
+
+      #route-summary-overlay .route-summary-buttons {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-shrink: 0;
+        position: relative;
+        z-index: 10002;
+      }
+
+      #nav-toast {
+        position: fixed;
+        bottom: 96px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 10px 18px;
+        background: rgba(20, 20, 20, 0.92);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        color: #fff;
+        font-size: 14px;
+        font-weight: 500;
+        line-height: 1.35;
+        border-radius: 10px;
+        z-index: 9999;
+        text-align: center;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+        max-width: min(92vw, 540px);
+        width: max-content;
+        box-sizing: border-box;
+        word-break: break-word;
+        white-space: normal;
+        pointer-events: none;
+        transition: bottom 0.25s ease, opacity 0.2s ease;
+      }
+
+      #nav-toast #nav-toast-arrived-btn {
+        pointer-events: auto;
+      }
+
+      @media (max-width: 600px) {
+        #route-summary-overlay {
+          bottom: 12px;
+          padding: 0 8px;
+        }
+        #route-summary-overlay .route-summary-card {
+          padding: 10px 14px;
+          gap: 10px;
+        }
+        #nav-toast {
+          font-size: 13px;
+          padding: 8px 14px;
+          bottom: 102px;
+        }
+      }
     </style>
   </head>
   <body>
