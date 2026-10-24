@@ -1741,6 +1741,10 @@ async function init(mapDataOptions: TGetMapDataOptions) {
   ): boolean {
     if (!directions) return false;
 
+    if (fakePositionUpdater.isRunning()) {
+      fakePositionUpdater.stop();
+    }
+
     if (!voicePrimed) {
       speakInstruction("Voice navigation enabled", { buzz: false });
       voicePrimed = true;
@@ -1814,6 +1818,19 @@ async function init(mapDataOptions: TGetMapDataOptions) {
       updateDistance: updateDistance,
     });
     console.log("Generated positions:", positions ? positions.slice(0, 5) : null);
+    (window as any).positions = positions;
+
+    if (positions && positions.length > 0 && mapView.BlueDot) {
+      try {
+        mapView.BlueDot.update(positions[0]);
+        const blueDotPositionElement = document.getElementById("bluedotupdate");
+        if (blueDotPositionElement) {
+          blueDotPositionElement.textContent = JSON.stringify(positions[0], null, 2);
+        }
+      } catch (bdErr) {
+        console.warn("Could not set initial BlueDot position:", bdErr);
+      }
+    }
 
     activeInstructions = [];
     spokenSteps.clear();
@@ -2028,9 +2045,14 @@ async function init(mapDataOptions: TGetMapDataOptions) {
         );
       }
     };
+    (window as any).startNavigation = startNavigation;
 
     const cancelNavigation = () => {
       positions = undefined;
+      (window as any).positions = undefined;
+      fakePositionUpdater.stop();
+      mapView.BlueDot?.disable?.();
+      blueDotEnabled = false;
       activeInstructions = [];
       buildingCrossings = [];
       nextCrossingPointer = 0;
@@ -2041,6 +2063,7 @@ async function init(mapDataOptions: TGetMapDataOptions) {
         directionsListEl.innerHTML = "";
       }
     };
+    (window as any).cancelNavigation = cancelNavigation;
 
     showRouteSummary(
       { turns: turnCount, floors: floorCount, etaText },
@@ -2085,28 +2108,69 @@ async function init(mapDataOptions: TGetMapDataOptions) {
 
     if (mapData == null) return false;
 
-    // In rescuer session, default to chosen entrance origin and locked victim destination if not already set
+    // In rescuer session, strictly sync chosen exterior entrance origin and locked victim destination
     if (rescuerSession.isActive) {
-      if (rescuerSession.selectedEntranceDoorId && !startSpaceSelector.value) {
-        let opt = startSpaceSelector.querySelector(`option[value="${rescuerSession.selectedEntranceDoorId}"]`) as HTMLOptionElement | null;
-        if (!opt) {
-          opt = document.createElement("option");
-          opt.value = rescuerSession.selectedEntranceDoorId;
-          const entry = exitRegistry.getByDoorId(rescuerSession.selectedEntranceDoorId);
-          opt.textContent = entry ? `🚪 Entrance: ${entry.name}` : rescuerSession.selectedEntranceDoorId;
-          startSpaceSelector.appendChild(opt);
+      const selectedDoorId = (rescuerEntrySelector && rescuerEntrySelector.value) ? rescuerEntrySelector.value : null;
+      if (selectedDoorId) {
+        rescuerSession.selectedEntranceDoorId = selectedDoorId;
+        const entrance = exitRegistry.getByDoorId(selectedDoorId) || exitRegistry.getById(selectedDoorId);
+        if (entrance) {
+          currentStartBuildingId = entrance.buildingId;
+          currentStartFloorId = entrance.floorId;
+
+          const startBSel = document.getElementById("startBuildingSelector") as HTMLSelectElement | null;
+          if (startBSel) startBSel.value = entrance.buildingId;
+
+          const startFSel = document.getElementById("startFloorSelector") as HTMLSelectElement | null;
+          const startBadge = document.getElementById("startFloorBadge");
+          if (startFSel) {
+            populateFloorSelect(startFSel, entrance.buildingId, entrance.floorId, startBadge);
+          }
+
+          if (startTomSelect && typeof (startTomSelect as any).updateForBuilding === "function") {
+            (startTomSelect as any).updateForBuilding(entrance.buildingId, entrance.floorId);
+          }
+
+          const startTargetId = entrance.doorId;
+          let startOpt = startSpaceSelector.querySelector(`option[value="${startTargetId}"]`) as HTMLOptionElement | null;
+          if (!startOpt) {
+            startOpt = document.createElement("option");
+            startOpt.value = startTargetId;
+            startOpt.textContent = `🚪 Entrance: ${entrance.name}`;
+            startSpaceSelector.appendChild(startOpt);
+          }
+          startSpaceSelector.value = startTargetId;
+
+          if (startTomSelect && typeof startTomSelect.addOption === "function") {
+            startTomSelect.addOption({
+              value: startTargetId,
+              text: `🚪 Entrance: ${entrance.name}`,
+            });
+            startTomSelect.setValue(startTargetId);
+          }
+          onStartSpaceChange({ target: { value: startTargetId } });
         }
-        startSpaceSelector.value = rescuerSession.selectedEntranceDoorId;
-      }
-      if (rescuerSession.victimSpaceId && !endSpaceSelector.value) {
-        let opt = endSpaceSelector.querySelector(`option[value="${rescuerSession.victimSpaceId}"]`) as HTMLOptionElement | null;
-        if (!opt) {
-          opt = document.createElement("option");
-          opt.value = rescuerSession.victimSpaceId;
-          opt.textContent = `🚨 Victim: ${rescuerSession.victimName}`;
-          endSpaceSelector.appendChild(opt);
+
+        if (rescuerSession.victimSpaceId) {
+          let opt = endSpaceSelector.querySelector(`option[value="${rescuerSession.victimSpaceId}"]`) as HTMLOptionElement | null;
+          if (!opt) {
+            opt = document.createElement("option");
+            opt.value = rescuerSession.victimSpaceId;
+            opt.textContent = `🚨 Victim: ${rescuerSession.victimName}`;
+            endSpaceSelector.appendChild(opt);
+          }
+          endSpaceSelector.value = rescuerSession.victimSpaceId;
+          if (endTomSelect && typeof endTomSelect.setValue === "function") {
+            try { endTomSelect.setValue(rescuerSession.victimSpaceId); } catch {}
+          }
         }
-        endSpaceSelector.value = rescuerSession.victimSpaceId;
+      } else {
+        if (rescuerSession.selectedEntranceDoorId && !startSpaceSelector.value) {
+          startSpaceSelector.value = rescuerSession.selectedEntranceDoorId;
+        }
+        if (rescuerSession.victimSpaceId && !endSpaceSelector.value) {
+          startSpaceSelector.value = rescuerSession.victimSpaceId;
+        }
       }
     }
 
@@ -2263,11 +2327,23 @@ async function init(mapDataOptions: TGetMapDataOptions) {
           const unconstrained = mapData.getDirections(start, end);
           mapView.Navigation.clear();
           positions = undefined;
+          (window as any).positions = undefined;
           activeInstructions = [];
+          fakePositionUpdater.stop();
+          mapView.BlueDot?.disable?.();
+          blueDotEnabled = false;
           hideInstructionBanner();
           hideRouteSummary();
           const directionsListEl = document.getElementById("directionsList");
           if (directionsListEl) directionsListEl.innerHTML = "";
+          const statusEl = document.getElementById("rescuerEntryStatus");
+          if (statusEl && rescuerSession.isActive) {
+            statusEl.style.display = "block";
+            statusEl.style.background = "#fee2e2";
+            statusEl.style.color = "#991b1b";
+            statusEl.style.border = "1px solid #f87171";
+            statusEl.innerHTML = `⛔ <b>No Safe Route:</b> Paths from selected entrance to victim cross active red-zone hazards. Please select an alternate entrance.`;
+          }
           if (unconstrained && zones.length > 0) {
             alert("NO SAFE ROUTE AVAILABLE — YOUR DESTINATION CANNOT BE REACHED WITHOUT CROSSING A BLOCKED AREA.");
           } else if (!unconstrained) {
@@ -2279,7 +2355,26 @@ async function init(mapDataOptions: TGetMapDataOptions) {
         }
 
         if (directions) {
-          return applyDirectionsAndRenderInstructions(directions, start, end, options);
+          const routeResult = applyDirectionsAndRenderInstructions(directions, start, end, options);
+          if (routeResult && rescuerSession.isActive) {
+            const statusEl = document.getElementById("rescuerEntryStatus");
+            if (statusEl && rescuerSession.selectedEntranceDoorId) {
+              const entrance = exitRegistry.getByDoorId(rescuerSession.selectedEntranceDoorId) || exitRegistry.getById(rescuerSession.selectedEntranceDoorId);
+              const entranceName = entrance?.name || "Selected Entrance";
+              statusEl.style.display = "block";
+              statusEl.style.background = "#dcfce7";
+              statusEl.style.color = "#15803d";
+              statusEl.style.border = "1px solid #86efac";
+              statusEl.innerHTML = `✅ <b>Safe Rescue Route Plotted:</b> Entering via <b>${entranceName}</b> &rarr; Navigating safely to victim (<b>${rescuerSession.victimName}</b>).`;
+              showToast(`🏃 RESCUE ROUTE: Enter via ${entranceName} and follow green safe route to victim!`);
+            }
+            const directionsListEl = document.getElementById("directionsList");
+            const detailsEl = directionsListEl?.closest("details");
+            if (detailsEl) {
+              detailsEl.open = true;
+            }
+          }
+          return routeResult;
         }
       }
     }
@@ -2959,6 +3054,10 @@ async function init(mapDataOptions: TGetMapDataOptions) {
     if (isEntranceBlocked) {
       mapView.Navigation.clear();
       positions = undefined;
+      (window as any).positions = undefined;
+      fakePositionUpdater.stop();
+      mapView.BlueDot?.disable?.();
+      blueDotEnabled = false;
       activeInstructions = [];
       hideInstructionBanner();
       hideRouteSummary();
@@ -3426,6 +3525,7 @@ async function init(mapDataOptions: TGetMapDataOptions) {
   (window as any).startTomSelect = startTomSelect;
   (window as any).endTomSelect = endTomSelect;
   (window as any).incidentService = incidentService;
+  (window as any).fakePositionUpdater = fakePositionUpdater;
 
   function populateFloorSelect(
     selectEl: HTMLSelectElement | null,
