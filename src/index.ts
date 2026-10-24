@@ -42,6 +42,34 @@ import { incidentService } from "./emergency/incidentService";
 (window as any).emergencyPanel = emergencyPanel;
 (window as any).emergencyPanelInstance = emergencyPanel;
 (window as any).incidentService = incidentService;
+
+// Rescuer session state tracker
+export interface RescuerSessionState {
+  isActive: boolean;
+  victimSpaceId: string;
+  victimName: string;
+  victimBuildingId: string;
+  victimBuildingName: string;
+  victimFloorId: string;
+  victimFloorName: string;
+  victimCoordinates?: { latitude: number; longitude: number };
+  incidentId: string;
+  selectedEntranceDoorId: string | null;
+}
+
+export let rescuerSession: RescuerSessionState = {
+  isActive: false,
+  victimSpaceId: "",
+  victimName: "",
+  victimBuildingId: "",
+  victimBuildingName: "",
+  victimFloorId: "",
+  victimFloorName: "",
+  incidentId: "",
+  selectedEntranceDoorId: null,
+};
+
+(window as any).rescuerSession = rescuerSession;
 const professors: Record<string, string> = {
   "Dr. Smith": "Office 101",
   "Prof. John": "Office 202",
@@ -374,9 +402,12 @@ function collapseDashboardsAfterRouteSuccess() {
   if (emergencyPanel && typeof (emergencyPanel as any).collapse === "function") {
     (emergencyPanel as any).collapse();
   }
-  if (window.innerWidth < 900) {
-    const sidebarEl = document.getElementById("sidebar");
-    if (sidebarEl) {
+  const sidebarEl = document.getElementById("sidebar");
+  if (sidebarEl) {
+    if (rescuerSession.isActive) {
+      // In rescuer SOS mode, keep sidebar accessible (never collapse away) so step-by-step directions remain visible
+      sidebarEl.classList.remove("collapsed");
+    } else if (window.innerWidth < 900) {
       sidebarEl.classList.add("collapsed");
     }
   }
@@ -930,13 +961,37 @@ function buildAnnouncements(
     } else if (instr.action?.type === "TakeVortex" || instr.action?.type === "TakeConnection") {
       const act = instr.action as any;
       const connType = act.connectionType || act.connection?.type || "stairs or elevator";
-      const direction = act.direction ? ` ${act.direction}` : "";
+      const direction = act.direction && act.direction !== "none" ? ` ${act.direction}` : "";
       const toFloorName = act.toFloor?.name || (act.toFloor ? `Floor ${act.toFloor.id || act.toFloor}` : "");
       const toText = toFloorName ? ` to ${toFloorName}` : "";
+
+      let text: string;
+      if (connType === "door") {
+        const entry =
+          (rescuerSession?.isActive && rescuerSession?.selectedEntranceDoorId
+            ? exitRegistry.getByDoorId(rescuerSession.selectedEntranceDoorId)
+            : null) ||
+          (act.connection?.id ? exitRegistry.getByDoorId(act.connection.id) : null);
+
+        const isInitialEntry = !announcements.some((a) =>
+          a.text.toLowerCase().includes("door") || a.text.toLowerCase().includes("enter")
+        );
+
+        if (isInitialEntry && entry) {
+          text = `Enter via ${entry.name}${toText}`;
+        } else if (isInitialEntry) {
+          text = `Enter via entrance door${toText}`;
+        } else {
+          text = `Pass through door${toText}`;
+        }
+      } else {
+        text = `Take the ${connType}${direction}${toText}`;
+      }
+
       announcements.push({
         id: nextId(),
         coordinate: instr.coordinate,
-        text: `Take the ${connType}${direction}${toText}`,
+        text,
       });
     }
 
@@ -1678,6 +1733,331 @@ async function init(mapDataOptions: TGetMapDataOptions) {
   let viewModeButton: HTMLButtonElement | null = null;
   let muteButton: HTMLButtonElement | null = null;
 
+  function applyDirectionsAndRenderInstructions(
+    directions: any,
+    startTarget: any,
+    destinationTarget: any,
+    options?: { isEmergency?: boolean }
+  ): boolean {
+    if (!directions) return false;
+
+    if (!voicePrimed) {
+      speakInstruction("Voice navigation enabled", { buzz: false });
+      voicePrimed = true;
+      console.log("✅ Voice primed");
+    }
+
+    followingBlueDot = true;
+    updateRecenterButtonState();
+
+    if (!blueDotEnabled && mapView.BlueDot && typeof mapView.BlueDot.enable === "function") {
+      mapView.BlueDot.enable();
+      blueDotEnabled = true;
+    }
+
+    const lastStep =
+      directions.instructions && directions.instructions.length > 0
+        ? directions.instructions[directions.instructions.length - 1]
+        : null;
+    if (lastStep) {
+      destinationCoord = {
+        latitude: lastStep.coordinate.latitude,
+        longitude: lastStep.coordinate.longitude,
+        floorId: lastStep.coordinate.floorId,
+      };
+      console.log("🎯 Destination set:", destinationCoord);
+
+      const targetId = (destinationTarget as any)?.id || endSpaceSelector.value;
+      const isExitOrEntrance =
+        exitRegistry.getByDoorId(targetId) ||
+        exitRegistry.getBySpaceId(targetId);
+      const targetName =
+        (destinationTarget as any)?.name ||
+        (isExitOrEntrance ? isExitOrEntrance.name : "Destination");
+      const markerLabel = isExitOrEntrance
+        ? (isExitOrEntrance.type === "entrance"
+            ? `🚪 ${isExitOrEntrance.name}`
+            : `🚨 ${isExitOrEntrance.name}`)
+        : rescuerSession.isActive
+        ? `🚨 SOS VICTIM: ${rescuerSession.victimName || targetName}`
+        : `🏁 ${targetName}`;
+
+      try {
+        mapView.Markers.add(
+          lastStep.coordinate,
+          `<div style="font-size: 16px; font-weight: bold; background: white; padding: 4px 8px; border-radius: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.3); border: 2px solid ${isExitOrEntrance || rescuerSession.isActive ? "#dc2626" : "#2563eb"};">${markerLabel}</div>`,
+          { rank: 10 }
+        );
+      } catch {}
+    }
+
+    const positionDirections = {
+      ...directions,
+      coordinates: straightenOutdoorPath(
+        directions.coordinates,
+        floorToBuilding
+      ),
+    };
+
+    const jitter = getNumericInputFromElementById("jitter", 0);
+    const speed = getNumericInputFromElementById("speed", 1000);
+    currentTickSpeedMs = speed;
+    const accuracy = getNumericInputFromElementById("accuracy", 5);
+    const updateDistance = getNumericInputFromElementById(
+      "updateDistance",
+      5
+    );
+
+    positions = generatePositionUpdates(mapData, positionDirections, {
+      maxJitter: jitter,
+      accuracy,
+      updateDistance: updateDistance,
+    });
+    console.log("Generated positions:", positions ? positions.slice(0, 5) : null);
+
+    activeInstructions = [];
+    spokenSteps.clear();
+    lastDistanceToFrontInstruction = null;
+
+    buildingCrossings = [];
+    nextCrossingPointer = 0;
+    crossingToastShownFor.clear();
+
+    const simplified = simplifyInstructions(directions.instructions);
+    const withBuildingCrossings = collapseOutdoorLegs(
+      simplified,
+      floorToBuilding
+    );
+    const announcements = buildAnnouncements(
+      withBuildingCrossings,
+      mapData,
+      (destinationTarget as any)?.name || endSpaceSelector.value
+    );
+    console.log(
+      "ANNOUNCEMENTS:",
+      announcements.map((a) => a.text)
+    );
+
+    activeInstructions = announcements.map(({ id, coordinate, text }) => {
+      const posIndex = positions
+        ? findPositionIndexForCoordinate(positions, coordinate as any)
+        : -1;
+      return {
+        coord: coordinate,
+        instruction: text,
+        id,
+        posIndex,
+      };
+    });
+
+    if (positions) {
+      let crossingSearchFrom = 0;
+      for (const instr of withBuildingCrossings) {
+        if (instr.isBuildingCrossing) {
+          const idx = findPositionIndexForCoordinate(
+            positions,
+            instr.coordinate,
+            crossingSearchFrom
+          );
+          if (idx >= 0) {
+            buildingCrossings.push({
+              index: idx,
+              buildingName: instr.crossingToBuildingName,
+              coordinate: instr.coordinate,
+            });
+            crossingSearchFrom = idx;
+          } else {
+            console.warn(
+              "⚠️ Could not locate a position index for building crossing:",
+              instr.crossingToBuildingName
+            );
+          }
+        }
+      }
+      console.log("BUILDING CROSSINGS:", buildingCrossings);
+    }
+
+    const pathColor = (
+      document.getElementById("pathColor") as HTMLInputElement
+    )?.value || "#4b90e2";
+    const pathRadius = Number(
+      (document.getElementById("pathRadius") as HTMLInputElement)?.value || 0.2
+    );
+
+    const isEmergencyRoute =
+      Boolean(options?.isEmergency) ||
+      rescuerSession.isActive ||
+      emergencyPanel?.isEmergencyModeActive?.() ||
+      !!exitRegistry.getByDoorId(endSpaceSelector.value) ||
+      !!exitRegistry.getBySpaceId(endSpaceSelector.value);
+    const effectiveColor = isEmergencyRoute ? "#188038" : pathColor;
+
+    if (showPathCheckbox?.checked !== false || isEmergencyRoute) {
+      mapView.Navigation.draw(directions, {
+        pathOptions: {
+          color: effectiveColor,
+          nearRadius: pathRadius,
+        },
+      });
+    }
+
+    // On mobile only (< 900px), collapse sheet slightly to open up map view
+    if (window.innerWidth < 900) {
+      const mainSidebarEl = document.getElementById("sidebar");
+      if (mainSidebarEl && !rescuerSession.isActive) {
+        mainSidebarEl.classList.remove("expanded");
+      }
+    }
+
+    // Auto chase-cam snap
+    if (positions && positions.length > 1) {
+      cameraMode = "walk";
+      updateViewModeButtonLabel();
+
+      const first = positions[0];
+      const second = positions
+        .slice(1)
+        .find((p) => p.latitude != null && p.longitude != null);
+
+      if (
+        first.latitude != null &&
+        first.longitude != null &&
+        second &&
+        second.latitude != null &&
+        second.longitude != null
+      ) {
+        const initialBearing = calculateBearing(
+          first.latitude,
+          first.longitude,
+          second.latitude,
+          second.longitude
+        );
+        lastComputedBearing = initialBearing;
+        animatedBearing = initialBearing;
+        lastAppliedPosition = {
+          latitude: first.latitude,
+          longitude: first.longitude,
+        };
+
+        if (
+          first.floorOrFloorId &&
+          mapView.currentFloor?.id !== first.floorOrFloorId
+        ) {
+          mapView.setFloor(first.floorOrFloorId);
+        }
+
+        const moveToken = ++programmaticMoveToken;
+        isProgrammaticCameraMove = true;
+        const startFloorObj = first.floorOrFloorId
+          ? mapData.getById("floor", first.floorOrFloorId)
+          : undefined;
+        try {
+          const startCoordinate = startFloorObj
+            ? mapView.createCoordinate(
+                first.latitude,
+                first.longitude,
+                startFloorObj
+              )
+            : mapView.createCoordinate({
+                latitude: first.latitude,
+                longitude: first.longitude,
+                floorId: first.floorOrFloorId,
+              });
+          mapView.Camera.animateTo(
+            {
+              center: startCoordinate,
+              bearing: initialBearing,
+              pitch: WALK_CAMERA_PITCH_DEGREES,
+              zoomLevel: 30,
+            },
+            { duration: 500, easing: "ease-in-out" }
+          );
+        } catch {}
+        setTimeout(() => {
+          if (moveToken === programmaticMoveToken) {
+            isProgrammaticCameraMove = false;
+          }
+        }, 600);
+      }
+
+      followingBlueDot = true;
+      updateRecenterButtonState();
+    }
+
+    const turnCount = withBuildingCrossings.filter(
+      (instr) => instr.action?.type === "Turn"
+    ).length;
+
+    const floorIds = new Set(
+      positions
+        ? positions
+            .map((p) => p.floorOrFloorId)
+            .filter((f): f is string => !!f)
+        : []
+    );
+    const floorCount = Math.max(1, floorIds.size);
+
+    const totalDistance = positions
+      ? computeRemainingDistanceMeters(positions, 0)
+      : (directions.distance || 0);
+    const etaText = formatEtaText(totalDistance);
+
+    // 1. Immediately show Instruction Banner
+    if (activeInstructions.length > 0) {
+      showInstructionBanner(
+        activeInstructions[0].instruction,
+        activeInstructions[1]?.instruction,
+        etaText
+      );
+    }
+
+    // 2. Immediately populate Turn-by-Turn Directions in the sidebar
+    renderTurnByTurnDirections(
+      announcements,
+      withBuildingCrossings,
+      totalDistance,
+      etaText
+    );
+
+    const startNavigation = () => {
+      if (positions) {
+        fakePositionUpdater.start(
+          positions,
+          speed,
+          onFakePositionReceived
+        );
+      }
+    };
+
+    const cancelNavigation = () => {
+      positions = undefined;
+      activeInstructions = [];
+      buildingCrossings = [];
+      nextCrossingPointer = 0;
+      crossingToastShownFor.clear();
+      hideInstructionBanner();
+      const directionsListEl = document.getElementById("directionsList");
+      if (directionsListEl) {
+        directionsListEl.innerHTML = "";
+      }
+    };
+
+    showRouteSummary(
+      { turns: turnCount, floors: floorCount, etaText },
+      startNavigation,
+      cancelNavigation
+    );
+
+    collapseDashboardsAfterRouteSuccess();
+
+    // Voice guidance for first instruction
+    if (activeInstructions.length > 0) {
+      speakInstruction(activeInstructions[0].instruction);
+    }
+
+    return true;
+  }
+
   function executeRouteGeneration(options?: { destinationId?: string; isEmergency?: boolean }): boolean {
     if (options?.destinationId) {
       const targetId = options.destinationId;
@@ -1702,24 +2082,40 @@ async function init(mapDataOptions: TGetMapDataOptions) {
       onEndSpaceChange({ target: { value: targetId } });
       updateFavoriteButtonState();
     }
-    if (!voicePrimed) {
-      // Not a turn instruction — no haptic buzz for the priming utterance.
-      speakInstruction("Voice navigation enabled", { buzz: false });
-      voicePrimed = true;
-      console.log("✅ Voice primed");
-    }
-
-    followingBlueDot = true;
-    updateRecenterButtonState();
 
     if (mapData == null) return false;
 
-    if (!blueDotEnabled && mapView.BlueDot && typeof mapView.BlueDot.enable === "function") {
-      mapView.BlueDot.enable();
-      blueDotEnabled = true;
+    // In rescuer session, default to chosen entrance origin and locked victim destination if not already set
+    if (rescuerSession.isActive) {
+      if (rescuerSession.selectedEntranceDoorId && !startSpaceSelector.value) {
+        let opt = startSpaceSelector.querySelector(`option[value="${rescuerSession.selectedEntranceDoorId}"]`) as HTMLOptionElement | null;
+        if (!opt) {
+          opt = document.createElement("option");
+          opt.value = rescuerSession.selectedEntranceDoorId;
+          const entry = exitRegistry.getByDoorId(rescuerSession.selectedEntranceDoorId);
+          opt.textContent = entry ? `🚪 Entrance: ${entry.name}` : rescuerSession.selectedEntranceDoorId;
+          startSpaceSelector.appendChild(opt);
+        }
+        startSpaceSelector.value = rescuerSession.selectedEntranceDoorId;
+      }
+      if (rescuerSession.victimSpaceId && !endSpaceSelector.value) {
+        let opt = endSpaceSelector.querySelector(`option[value="${rescuerSession.victimSpaceId}"]`) as HTMLOptionElement | null;
+        if (!opt) {
+          opt = document.createElement("option");
+          opt.value = rescuerSession.victimSpaceId;
+          opt.textContent = `🚨 Victim: ${rescuerSession.victimName}`;
+          endSpaceSelector.appendChild(opt);
+        }
+        endSpaceSelector.value = rescuerSession.victimSpaceId;
+      }
     }
 
     if (!startSpaceSelector.value || !endSpaceSelector.value) {
+      if (rescuerSession.isActive && !rescuerSession.selectedEntranceDoorId) {
+        showToast("🚪 Please select a building exterior entrance point first.");
+        rescuerEntrySelector?.focus?.();
+        return false;
+      }
       showToast("Please select both a Starting Location and a Destination.");
       return false;
     }
@@ -1730,15 +2126,6 @@ async function init(mapDataOptions: TGetMapDataOptions) {
     }
 
     if (startSpaceSelector.value && endSpaceSelector.value) {
-      const jitter = getNumericInputFromElementById("jitter", 0);
-      const speed = getNumericInputFromElementById("speed", 1000);
-      currentTickSpeedMs = speed;
-      const accuracy = getNumericInputFromElementById("accuracy", 5);
-      const updateDistance = getNumericInputFromElementById(
-        "updateDistance",
-        5
-      );
-
       const start =
         mapData.getById("door", startSpaceSelector.value) ||
         mapData.getById("space", startSpaceSelector.value);
@@ -1892,284 +2279,7 @@ async function init(mapDataOptions: TGetMapDataOptions) {
         }
 
         if (directions) {
-          const lastStep =
-            directions.instructions[directions.instructions.length - 1];
-          if (lastStep) {
-            destinationCoord = {
-              latitude: lastStep.coordinate.latitude,
-              longitude: lastStep.coordinate.longitude,
-              floorId: lastStep.coordinate.floorId,
-            };
-            console.log("🎯 Destination set:", destinationCoord);
-
-            const isExitOrEntrance =
-              exitRegistry.getByDoorId(endSpaceSelector.value) ||
-              exitRegistry.getBySpaceId(endSpaceSelector.value);
-            const markerLabel = isExitOrEntrance
-              ? (isExitOrEntrance.type === "entrance"
-                  ? `🚪 ${isExitOrEntrance.name}`
-                  : `🚨 ${isExitOrEntrance.name}`)
-              : `🏁 Destination`;
-
-            mapView.Markers.add(
-              lastStep.coordinate,
-              `<div style="font-size: 16px; font-weight: bold; background: white; padding: 4px 8px; border-radius: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.3); border: 2px solid ${isExitOrEntrance ? "#dc2626" : "#2563eb"};">${markerLabel}</div>`,
-              { rank: 10 }
-            );
-          }
-
-          const positionDirections = {
-            ...directions,
-            coordinates: straightenOutdoorPath(
-              directions.coordinates,
-              floorToBuilding
-            ),
-          };
-
-          positions = generatePositionUpdates(mapData, positionDirections, {
-            maxJitter: jitter,
-            accuracy,
-            updateDistance: updateDistance,
-          });
-          console.log("Generated positions:", positions.slice(0, 5));
-
-          // ✅ CHANGED: instruction/building-crossing computation moved
-          // OUT of the showPathCheckbox conditional and up here — the
-          // route-summary card (below) needs the turn count regardless of
-          // whether the user has "show path" ticked, so this now always
-          // runs. Drawing the actual path line on the map is still gated
-          // by showPathCheckbox, same as before.
-          activeInstructions = [];
-          spokenSteps.clear();
-          lastDistanceToFrontInstruction = null;
-
-          buildingCrossings = [];
-          nextCrossingPointer = 0;
-          crossingToastShownFor.clear();
-
-          const simplified = simplifyInstructions(directions.instructions);
-          const withBuildingCrossings = collapseOutdoorLegs(
-            simplified,
-            floorToBuilding
-          );
-          const announcements = buildAnnouncements(
-            withBuildingCrossings,
-            mapData,
-            end?.name
-          );
-          console.log(
-            "ANNOUNCEMENTS:",
-            announcements.map((a) => a.text)
-          );
-
-          activeInstructions = announcements.map(({ id, coordinate, text }) => {
-            const posIndex = positions
-              ? findPositionIndexForCoordinate(positions, coordinate as any)
-              : -1;
-            return {
-              coord: coordinate,
-              instruction: text,
-              id,
-              posIndex,
-            };
-          });
-
-          if (positions) {
-            let crossingSearchFrom = 0;
-            for (const instr of withBuildingCrossings) {
-              if (instr.isBuildingCrossing) {
-                const idx = findPositionIndexForCoordinate(
-                  positions,
-                  instr.coordinate,
-                  crossingSearchFrom
-                );
-                if (idx >= 0) {
-                  buildingCrossings.push({
-                    index: idx,
-                    buildingName: instr.crossingToBuildingName,
-                    coordinate: instr.coordinate,
-                  });
-                  crossingSearchFrom = idx;
-                } else {
-                  console.warn(
-                    "⚠️ Could not locate a position index for building crossing:",
-                    instr.crossingToBuildingName
-                  );
-                }
-              }
-            }
-            console.log("BUILDING CROSSINGS:", buildingCrossings);
-          }
-
-          if (showPathCheckbox.checked === true) {
-            const pathColor = (
-              document.getElementById("pathColor") as HTMLInputElement
-            ).value;
-            const pathRadius = Number(
-              (document.getElementById("pathRadius") as HTMLInputElement).value
-            );
-
-            // CampusResQ: When in Emergency Mode or evacuating to an emergency exit, render safe path in green (#188038)
-            const isEmergencyRoute = Boolean(options?.isEmergency) || emergencyPanel?.isEmergencyModeActive?.() || !!exitRegistry.getByDoorId(endSpaceSelector.value) || !!exitRegistry.getBySpaceId(endSpaceSelector.value);
-              emergencyPanel?.isEmergencyModeActive?.() ||
-              !!exitRegistry.getByDoorId(endSpaceSelector.value) ||
-              !!exitRegistry.getBySpaceId(endSpaceSelector.value);
-            const effectiveColor = isEmergencyRoute ? "#188038" : pathColor;
-
-            mapView.Navigation.draw(directions, {
-              pathOptions: {
-                color: effectiveColor,
-                nearRadius: pathRadius,
-              },
-            });
-          }
-
-          // On mobile only (< 900px), collapse sheet slightly to open up map view
-          if (window.innerWidth < 900) {
-            const mainSidebarEl = document.getElementById("sidebar");
-            if (mainSidebarEl) {
-              mainSidebarEl.classList.remove("expanded");
-            }
-          }
-
-          // ------------------ AUTO CHASE-CAM ON GENERATE ------------------
-          // ✅ Restored: snaps the camera into angled walk (chase) mode behind
-          // the dot's initial heading immediately after route generation.
-          if (positions && positions.length > 1) {
-            cameraMode = "walk";
-            updateViewModeButtonLabel();
-
-            const first = positions[0];
-            const second = positions
-              .slice(1)
-              .find((p) => p.latitude != null && p.longitude != null);
-
-            if (
-              first.latitude != null &&
-              first.longitude != null &&
-              second &&
-              second.latitude != null &&
-              second.longitude != null
-            ) {
-              const initialBearing = calculateBearing(
-                first.latitude,
-                first.longitude,
-                second.latitude,
-                second.longitude
-              );
-              lastComputedBearing = initialBearing;
-              animatedBearing = initialBearing;
-              lastAppliedPosition = {
-                latitude: first.latitude,
-                longitude: first.longitude,
-              };
-
-              if (
-                first.floorOrFloorId &&
-                mapView.currentFloor.id !== first.floorOrFloorId
-              ) {
-                mapView.setFloor(first.floorOrFloorId);
-              }
-
-              const moveToken = ++programmaticMoveToken;
-              isProgrammaticCameraMove = true;
-              const startFloorObj = first.floorOrFloorId
-                ? mapData.getById("floor", first.floorOrFloorId)
-                : undefined;
-              const startCoordinate = startFloorObj
-                ? mapView.createCoordinate(
-                    first.latitude,
-                    first.longitude,
-                    startFloorObj
-                  )
-                : mapView.createCoordinate({
-                    latitude: first.latitude,
-                    longitude: first.longitude,
-                    floorId: first.floorOrFloorId,
-                  });
-              mapView.Camera.animateTo(
-                {
-                  center: startCoordinate,
-                  bearing: initialBearing,
-                  pitch: WALK_CAMERA_PITCH_DEGREES,
-                  zoomLevel: 30,
-                },
-                { duration: 500, easing: "ease-in-out" }
-              );
-              setTimeout(() => {
-                if (moveToken === programmaticMoveToken) {
-                  isProgrammaticCameraMove = false;
-                }
-              }, 600);
-            }
-
-            followingBlueDot = true;
-            updateRecenterButtonState();
-          }
-
-          // ------------------ ROUTE SUMMARY & IMMEDIATE INSTRUCTIONS ------------------
-          if (positions) {
-            const turnCount = withBuildingCrossings.filter(
-              (instr) => instr.action?.type === "Turn"
-            ).length;
-
-            // Distinct floors actually walked through
-            const floorIds = new Set(
-              positions
-                .map((p) => p.floorOrFloorId)
-                .filter((f): f is string => !!f)
-            );
-            const floorCount = Math.max(1, floorIds.size);
-
-            const totalDistance = computeRemainingDistanceMeters(positions, 0);
-            const etaText = formatEtaText(totalDistance);
-
-            // 1. Immediately show Instruction Banner
-            if (activeInstructions.length > 0) {
-              showInstructionBanner(
-                activeInstructions[0].instruction,
-                activeInstructions[1]?.instruction,
-                etaText
-              );
-            }
-
-            // 2. Immediately populate Turn-by-Turn Directions in the sidebar
-            renderTurnByTurnDirections(
-              announcements,
-              withBuildingCrossings,
-              totalDistance,
-              etaText
-            );
-
-            const startNavigation = () => {
-              fakePositionUpdater.start(
-                positions!,
-                speed,
-                onFakePositionReceived
-              );
-            };
-
-            const cancelNavigation = () => {
-              positions = undefined;
-              activeInstructions = [];
-              buildingCrossings = [];
-              nextCrossingPointer = 0;
-              crossingToastShownFor.clear();
-              hideInstructionBanner();
-              const directionsListEl = document.getElementById("directionsList");
-              if (directionsListEl) {
-                directionsListEl.innerHTML = "";
-              }
-            };
-
-            showRouteSummary(
-              { turns: turnCount, floors: floorCount, etaText },
-              startNavigation,
-              cancelNavigation
-            );
-            collapseDashboardsAfterRouteSuccess();
-            return true;
-          }
+          return applyDirectionsAndRenderInstructions(directions, start, end, options);
         }
       }
     }
@@ -2660,21 +2770,8 @@ async function init(mapDataOptions: TGetMapDataOptions) {
     });
   }
 
-  // Rescuer session state tracker
-  interface RescuerSessionState {
-    isActive: boolean;
-    victimSpaceId: string;
-    victimName: string;
-    victimBuildingId: string;
-    victimBuildingName: string;
-    victimFloorId: string;
-    victimFloorName: string;
-    victimCoordinates?: { latitude: number; longitude: number };
-    incidentId: string;
-    selectedEntranceDoorId: string | null;
-  }
-
-  let rescuerSession: RescuerSessionState = {
+  // Reset rescuer session state on map init
+  rescuerSession = {
     isActive: false,
     victimSpaceId: "",
     victimName: "",
@@ -2803,6 +2900,17 @@ async function init(mapDataOptions: TGetMapDataOptions) {
     }
 
     const startTargetId = doorObj ? doorObj.id : spaceObj!.id;
+
+    // Guarantee native startSpaceSelector contains the option so .value is never dropped
+    let startOpt = startSpaceSelector.querySelector(`option[value="${startTargetId}"]`) as HTMLOptionElement | null;
+    if (!startOpt) {
+      startOpt = document.createElement("option");
+      startOpt.value = startTargetId;
+      startOpt.textContent = `🚪 Entrance: ${entrance.name}`;
+      startSpaceSelector.appendChild(startOpt);
+    }
+    startSpaceSelector.value = startTargetId;
+
     if (startTomSelect && typeof startTomSelect.addOption === "function") {
       startTomSelect.addOption({
         value: startTargetId,
@@ -2810,13 +2918,19 @@ async function init(mapDataOptions: TGetMapDataOptions) {
       });
       startTomSelect.setValue(startTargetId);
     }
-    startSpaceSelector.value = startTargetId;
     onStartSpaceChange({ target: { value: startTargetId } });
 
     // 2. Guarantee Victim Destination remains locked
+    let victimOpt = endSpaceSelector.querySelector(`option[value="${rescuerSession.victimSpaceId}"]`) as HTMLOptionElement | null;
+    if (!victimOpt) {
+      victimOpt = document.createElement("option");
+      victimOpt.value = rescuerSession.victimSpaceId;
+      victimOpt.textContent = `🚨 Victim: ${rescuerSession.victimName}`;
+      endSpaceSelector.appendChild(victimOpt);
+    }
     endSpaceSelector.value = rescuerSession.victimSpaceId;
     if (endTomSelect && typeof endTomSelect.setValue === "function") {
-      endTomSelect.setValue(rescuerSession.victimSpaceId);
+      try { endTomSelect.setValue(rescuerSession.victimSpaceId); } catch {}
     }
 
     // 3. Mark Rescuer Entry Point on Map
@@ -2871,6 +2985,13 @@ async function init(mapDataOptions: TGetMapDataOptions) {
         statusEl.innerHTML = `✅ <b>Safe Rescue Route Plotted:</b> Entering via <b>${entrance.name}</b> &rarr; Navigating safely to victim (<b>${rescuerSession.victimName}</b>).`;
       }
       showToast(`🏃 RESCUE ROUTE: Enter via ${entrance.name} and follow green safe route to victim!`);
+
+      // Auto-expand Turn-by-Turn directions in sidebar
+      const directionsListEl = document.getElementById("directionsList");
+      const detailsEl = directionsListEl?.closest("details");
+      if (detailsEl) {
+        detailsEl.open = true;
+      }
     } else {
       if (statusEl) {
         statusEl.style.display = "block";
@@ -3724,6 +3845,14 @@ async function init(mapDataOptions: TGetMapDataOptions) {
   emergencyPanel.init(mapData, mapView, {
     getCurrentBuildingId: () => currentNavBuildingId,
     getCurrentStartSpace: () => {
+      // 0. Rescuer active session: Chosen exterior entrance takes precedence
+      if (rescuerSession.isActive && rescuerSession.selectedEntranceDoorId) {
+        const entranceTarget =
+          mapData.getById("door", rescuerSession.selectedEntranceDoorId) ||
+          mapData.getById("space", rescuerSession.selectedEntranceDoorId);
+        if (entranceTarget) return entranceTarget;
+      }
+
       // 1. FIRST: User's explicitly selected starting location from route picker
       if (startSpaceSelector && startSpaceSelector.value) {
         const selected =
@@ -3830,33 +3959,25 @@ async function init(mapDataOptions: TGetMapDataOptions) {
       return executeRouteGeneration(options);
     },
     onRouteGenerated: (directions: any, destinationTarget: any) => {
-      // Draw evacuation route directly without triggering generateButton or starting automatic movements
-      if (mapView?.Navigation) {
-        mapView.Navigation.draw(directions, {
-          pathOptions: {
-            color: "#188038",
-            nearRadius: 5,
-          },
-        });
+      let curStart: any = null;
+      if (rescuerSession.isActive && rescuerSession.selectedEntranceDoorId) {
+        curStart =
+          mapData.getById("door", rescuerSession.selectedEntranceDoorId) ||
+          mapData.getById("space", rescuerSession.selectedEntranceDoorId);
       }
-      const targetName = (destinationTarget as any)?.name || "Safe Exit";
-      showInstructionBanner(`🏃 EVACUATION ROUTE: Proceed to ${targetName}`);
-      if (destinationTarget) {
-        const coord =
-          (destinationTarget as any).center ||
-          (directions.coordinates &&
-            directions.coordinates[directions.coordinates.length - 1]);
-        if (coord) {
-          try {
-            mapView.Markers.add(
-              coord,
-              `<div style="font-size: 15px; font-weight: bold; background: white; padding: 4px 8px; border-radius: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.3); border: 2px solid #188038; color: #188038;">🏃 ${targetName}</div>`,
-              { rank: 10 }
-            );
-          } catch {}
-        }
+      if (!curStart) {
+        curStart =
+          (emergencyPanel as any)?.callbacks?.getCurrentStartSpace?.() ||
+          mapData.getById("door", startSpaceSelector.value) ||
+          mapData.getById("space", startSpaceSelector.value);
       }
-      collapseDashboardsAfterRouteSuccess();
+
+      applyDirectionsAndRenderInstructions(
+        directions,
+        curStart,
+        destinationTarget,
+        { isEmergency: true }
+      );
     },
     onClearNavigation: () => {
       mapView.Navigation.clear();

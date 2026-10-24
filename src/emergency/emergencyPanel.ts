@@ -1721,6 +1721,16 @@ export class EmergencyPanel {
     if (!destNav) return;
 
     this.hideWarning();
+
+    // Prefer reusing the complete existing route-generation flow
+    if (this.callbacks.generateRoute) {
+      const generated = this.callbacks.generateRoute({ destinationId: destSpaceId, isEmergency: true });
+      if (generated) {
+        this.showToast("Safe route updated with active hazard restrictions.");
+        return;
+      }
+    }
+
     const safeDirections = safeRouteService.getSafeDirections(startSpace, destNav, this.mapData);
 
     if (safeDirections) {
